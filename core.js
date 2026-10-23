@@ -142,6 +142,63 @@
     });
   }
 
+  /* ---------- ย้ายจากโครงเดิม (แท็บ "ค้าง ward" + "consult" -> Main) ---------- */
+  var MAIN_KEYS = ['status', 'note', 'consultDate', 'opDate', 'ward', 'hn', 'name', 'sex', 'age', 'dx', 'op', 'anes', 'staff'];
+
+  // values = ตารางทั้งแท็บ (แถวแรกเป็นหัว) -> { rows: [{key: ค่า}], skipped } ; consult: คอลัมน์ B ที่ไม่มีหัว = หมายเหตุ
+  function legacyRows(values, isConsult) {
+    values = values || [];
+    var seen = {};
+    var keys = (values[0] || []).map(function (h, i) {
+      var n = normHeader(h), k = HEADER_KEYS[n] || null;
+      if (!n && isConsult && i === 1) k = 'note';
+      if (!k || seen[k]) return null;
+      seen[k] = true;
+      return k;
+    });
+    var rows = [], skipped = 0;
+    for (var r = 1; r < values.length; r++) {
+      var p = {}, any = false, row = values[r] || [];
+      keys.forEach(function (k, c) {
+        if (!k) return;
+        var v = String(row[c] == null ? '' : row[c]).trim();
+        if (!v) return;
+        p[k] = v;
+        if (CONTENT_KEYS.indexOf(k) >= 0) any = true;
+      });
+      if (any) rows.push(p); else if (row.some(function (x) { return String(x == null ? '' : x).trim(); })) skipped++;
+    }
+    return { rows: rows, skipped: skipped };
+  }
+
+  /* ค้าง ward ก่อน แล้วตามด้วย consult (คงลำดับเดิมในแต่ละแท็บ) ไม่ตัดแถวซ้ำ ไม่แก้ค่า
+   * คืน { rows: [[13 ช่อง]], staffs, stats } stats ใช้รายงานผลให้ผู้ใช้ตรวจ */
+  function migratePlan(wardValues, consultValues, wardsList) {
+    var a = legacyRows(wardValues, false), b = legacyRows(consultValues, true);
+    var all = a.rows.concat(b.rows);
+    var staffSeen = {}, staffs = [], hnCount = {}, wardCount = {};
+    var noStatus = 0, badDates = 0;
+    var listed = {};
+    (wardsList || []).forEach(function (w) { listed[String(w).replace(/\s+/g, ' ').trim().toLowerCase()] = true; });
+    all.forEach(function (p) {
+      if (p.staff) { var sk = p.staff.replace(/\s+/g, ' ').toLowerCase(); if (!staffSeen[sk]) { staffSeen[sk] = true; staffs.push(p.staff.replace(/\s+/g, ' ')); } }
+      if (p.hn) hnCount[p.hn] = (hnCount[p.hn] || 0) + 1;
+      if (p.ward) { var wk = p.ward.replace(/\s+/g, ' ').toLowerCase(); if (!listed[wk]) wardCount[wk] = wardCount[wk] || { name: p.ward, count: 0 }; if (!listed[wk]) wardCount[wk].count++; }
+      if (!p.status) noStatus++;
+      if (['consultDate', 'opDate'].some(function (k) { return p[k] && p[k] !== '-' && !parseDate(p[k]); })) badDates++;
+    });
+    return {
+      rows: all.map(function (p) { return MAIN_KEYS.map(function (k) { return p[k] || ''; }); }),
+      staffs: staffs,
+      stats: {
+        wardRows: a.rows.length, consultRows: b.rows.length, total: all.length, skipped: a.skipped + b.skipped,
+        duplicateHn: Object.keys(hnCount).filter(function (h) { return hnCount[h] > 1; }).length,
+        unlistedWards: Object.keys(wardCount).map(function (k) { return wardCount[k]; }),
+        noStatus: noStatus, badDates: badDates, staffs: staffs.length
+      }
+    };
+  }
+
   /* ---------- A1 ---------- */
   function a1(col, row) { // (28, 5) -> "AB5"
     var s = '';
@@ -163,6 +220,7 @@
     normHeader: normHeader, columnKeys: columnKeys, sameName: sameName, normalizeNames: normalizeNames,
     normalizeWards: normalizeWards, checkWardName: checkWardName, dropStaffHeader: dropStaffHeader,
     wardUsage: wardUsage, matchIndexes: matchIndexes, extractSheetId: extractSheetId,
-    setArchived: setArchived, rotationSummary: rotationSummary, a1: a1, colRuns: colRuns
+    setArchived: setArchived, rotationSummary: rotationSummary, a1: a1, colRuns: colRuns,
+    MAIN_KEYS: MAIN_KEYS, legacyRows: legacyRows, migratePlan: migratePlan
   };
 });

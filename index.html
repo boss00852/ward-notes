@@ -415,7 +415,7 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
   }
   function openRot() {
     S.scroll = window.scrollY;
-    S.rot = { form: null, busy: false, err: '', confirm: null, showArch: false, nameV: '', wardsV: '', staffsV: '', urlV: '' };
+    S.rot = { form: null, busy: false, err: '', confirm: null, showArch: false, nameV: '', wardsV: '', staffsV: '', urlV: '', result: null };
     S.view = 'rot'; render(); window.scrollTo(0, 0);
   }
   function rotRow(r) {
@@ -449,6 +449,12 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
         '<div class="sub">จะสร้าง Google Sheet ใหม่ใน Drive ของคุณ (แท็บ Main / Staffs / Wards) และสลับไปใช้ทันที ช่อง ward/staff เติมจาก rotation ปัจจุบันให้ แก้ได้ "Ward อื่นๆ" จะถูกเพิ่มท้ายรายการ ward ให้เอง</div>' +
         '<div class="rbtns"><button class="btn sm solid" data-act="rotcreate"' + b + '>' + (R.busy ? 'กำลังสร้าง…' : 'สร้าง rotation') + '</button>' +
         '<button class="btn sm" data-act="rotform" data-v=""' + b + '>ยกเลิก</button></div></div>';
+    } else if (R.form === 'legacy') {
+      h += '<div class="rform"><div class="sub">สร้างไฟล์ Google Sheet ใหม่ (โครง Main / Staffs / Wards) จากไฟล์เดิมที่มีแท็บ "ค้าง ward" + "consult" <b>ไฟล์เดิมจะถูกอ่านอย่างเดียว ไม่ถูกแก้ไข</b></div>' +
+        '<label class="f"><span>ลิงก์หรือ ID ของ Sheet เดิม</span><input data-r="urlV" type="text" autocomplete="off" placeholder="https://docs.google.com/spreadsheets/d/…" value="' + esc(R.urlV) + '"></label>' +
+        '<label class="f"><span>ชื่อไฟล์ใหม่ (เว้นว่าง = ชื่อเดิม + "(โครงใหม่)")</span><input data-r="nameV" type="text" value="' + esc(R.nameV) + '"></label>' +
+        '<div class="rbtns"><button class="btn sm solid" data-act="rotlegacy"' + b + '>' + (R.busy ? 'กำลังย้ายข้อมูล…' : 'ย้ายข้อมูล') + '</button>' +
+        '<button class="btn sm" data-act="rotform" data-v=""' + b + '>ยกเลิก</button></div></div>';
     } else if (R.form === 'add') {
       h += '<div class="rform"><label class="f"><span>ลิงก์หรือ ID ของ Sheet</span><input data-r="urlV" type="text" autocomplete="off" placeholder="https://docs.google.com/spreadsheets/d/…" value="' + esc(R.urlV) + '"></label>' +
         '<label class="f"><span>ชื่อที่แสดง (เว้นว่าง = ใช้ชื่อไฟล์)</span><input data-r="nameV" type="text" value="' + esc(R.nameV) + '"></label>' +
@@ -457,9 +463,23 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
         '<button class="btn sm" data-act="rotform" data-v=""' + b + '>ยกเลิก</button></div></div>';
     } else {
       h += '<div class="rbtns"><button class="btn sm solid" data-act="rotform" data-v="new">เริ่ม rotation ใหม่</button>' +
-        '<button class="btn sm" data-act="rotform" data-v="add">ผูก sheet ที่มีอยู่</button></div>';
+        '<button class="btn sm" data-act="rotform" data-v="add">ผูก sheet ที่มีอยู่</button>' +
+        '<button class="btn sm" data-act="rotform" data-v="legacy">ย้ายจากโครงเดิม</button></div>';
     }
     if (R.err) h += '<div class="err">' + esc(R.err) + '</div>';
+    if (R.result) {
+      var st = R.result.stats, un = st.unlistedWards.map(function (w) { return esc(w.name) + ' (' + w.count + ')'; }).join(', ');
+      h += '<div class="rform"><div class="nm" style="font-size:17px">ย้ายข้อมูลเสร็จแล้ว</div>' +
+        '<div class="sub">ย้ายคนไข้ ' + st.total + ' แถว (ค้าง ward ' + st.wardRows + ' + consult ' + st.consultRows + ') และรายชื่อ staff ' + st.staffs + ' คน · ไฟล์เดิมไม่ถูกแก้ไข</div>' +
+        '<div class="sub">ตรวจสอบสิ่งเหล่านี้ในไฟล์ใหม่:</div><ul style="margin:0;padding-left:20px;font-size:14px;line-height:1.6">' +
+        (st.skipped ? '<li>ข้ามแถวที่มีข้อมูลแต่ไม่มี HN/ชื่อ/Dx/Op/หมายเหตุ/วันที่ ' + st.skipped + ' แถว</li>' : '') +
+        (st.duplicateHn ? '<li>HN ซ้ำกัน ' + st.duplicateHn + ' ราย (เช่น คนที่อยู่ทั้ง consult และ ค้าง ward) คงไว้ทั้งสองแถว ไม่ได้รวมให้</li>' : '') +
+        (st.noStatus ? '<li>ไม่มีสถานะ ' + st.noStatus + ' แถว จะไม่ขึ้นในแท็บ in service จนกว่าจะเติมสถานะ</li>' : '') +
+        (st.badDates ? '<li>วันที่อ่านไม่ได้ ' + st.badDates + ' แถว คงค่าเดิมไว้ ไม่ได้แก้</li>' : '') +
+        (un ? '<li>ward ที่คนไข้ใช้แต่ไม่อยู่ในรายการ Wards: ' + un + ' (เพิ่มได้ในหน้าจัดการ ward)</li>' : '') +
+        '<li>ลำดับแถว: ค้าง ward ก่อน แล้วตามด้วย consult</li></ul>' +
+        (R.result.url ? '<a class="rlink" target="_blank" rel="noopener" href="' + esc(R.result.url) + '">เปิดไฟล์ใหม่ใน Sheets</a>' : '') + '</div>';
+    }
 
     h += '<h2>ward ของ rotation นี้</h2><div class="rbtns"><button class="btn sm" data-act="wards">จัดการ ward (เพิ่ม / แก้ชื่อ / ลบ)</button></div>';
     h += '<h2>ความเป็นส่วนตัว</h2><div class="sub" style="padding:0 4px">เก็บสำเนาข้อมูลคนไข้ล่าสุดไว้ในเครื่องนี้ เพื่อให้เปิดแอปเร็วขึ้น</div>' +
@@ -636,7 +656,8 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
     else if (act === 'rotform') {
       S.rot.form = v || null; S.rot.err = '';
       if (v === 'new') { S.rot.wardsV = S.data.wards.filter(function (w) { return w !== 'Ward อื่นๆ'; }).join('\n'); S.rot.staffsV = S.data.staffs.join('\n'); S.rot.nameV = ''; }
-      if (v === 'add') { S.rot.urlV = ''; S.rot.nameV = ''; }
+      if (v === 'add' || v === 'legacy') { S.rot.urlV = ''; S.rot.nameV = ''; }
+      S.rot.result = null;
       render();
     }
     else if (act === 'rotarchtoggle') { S.rot.showArch = !S.rot.showArch; render(); }
@@ -656,6 +677,14 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
       if (!S.rot.nameV.trim()) { S.rot.err = 'ตั้งชื่อ rotation ก่อน'; render(); return; }
       rotRun('createRotation', [{ name: S.rot.nameV, wards: S.rot.wardsV, staffs: S.rot.staffsV }],
         function (res) { return afterSwitch(res).then(function () { toast('สร้าง rotation แล้ว'); }); });
+    }
+    else if (act === 'rotlegacy') {
+      if (!S.rot.urlV.trim()) { S.rot.err = 'ใส่ลิงก์หรือ ID ของ sheet เดิม'; render(); return; }
+      rotRun('importLegacy', [{ name: S.rot.nameV, url: S.rot.urlV }], function (res) {
+        S.rotationId = res.activeId; S.data.rotations = res.rotations;
+        S.rot.form = null; S.rot.result = { stats: res.stats, url: res.url };
+        return load(true).then(function () { if (S.view === 'rot') render(); toast('ย้ายข้อมูลแล้ว'); });
+      });
     }
     else if (act === 'rotadd') {
       if (!S.rot.urlV.trim()) { S.rot.err = 'ใส่ลิงก์หรือ ID ของ sheet'; render(); return; }

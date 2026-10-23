@@ -34,6 +34,22 @@
     { title: 'Wards', rows: [['รายชื่อ wards ทั้งหมด'], ['ENT ชั้น 11'], ['Trauma ชั้น 8'], ['Ward อื่นๆ']] }
   ]);
 
+  // sheet โครงเดิม (ข้อมูลสมมติ): แท็บ "ค้าง ward" + "consult" (คอลัมน์ B ไม่มีหัว) + "Wards"
+  var LEGACY_ID = 'MOCKLEGACY00000000001';
+  newSheet(LEGACY_ID, 'บันทึกคนไข้ (โครงเดิม mock)', [
+    { title: 'ค้าง ward', rows: [
+      ['สถานะ', 'หมายเหตุ', 'วันรับ consult', 'วันที่ผ่า', 'ward ที่อยู่', 'HN', 'ชื่อ', 'เพศ', 'อายุ', 'Diagnosis', 'Operation/Management', 'Anes', 'staff'],
+      ['in service', 'แผลดี', '10/10/2569', '12/10/2569', 'ENT ชั้น 11', '000111', 'ก ตัวอย่าง', 'ชาย', '45', 'Fx mandible', 'ORIF', 'GA', 'ทพ.ก'],
+      ['off service', '', '1/9/2026', '-', 'Trauma ชั้น 8', '000222', 'ข ตัวอย่าง', 'หญิง', '5.0', 'Cyst', '', '', 'ทพ.ข'],
+      ['', '', '', '', '', '', '', '', '', '', '', '', ''],
+      ['in service', '', '5/10/2569', '1/1/1969', 'Ward เก่า', '000333', 'ค ตัวอย่าง', 'ชาย', '0.8', 'Cleft', '', '', 'ทพ.ก']] },
+    { title: 'consult', rows: [
+      ['สถานะ', '', 'วันรับ consult', 'ward ที่อยู่', 'HN', 'ชื่อ', 'เพศ', 'อายุ', 'Diagnosis', 'Anes', 'staff'],
+      ['in service', 'รอ OR', '20/10/2569', 'ENT ชั้น 11', '000111', 'ก ตัวอย่าง', 'ชาย', '45', 'F/U', '', 'ทพ.ค'],
+      ['in service', '', '21/10/2569', 'Trauma ชั้น 8', '000444', 'ง ตัวอย่าง', 'หญิง', '30', 'Abscess', '', '']] },
+    { title: 'Wards', rows: [['รายชื่อ wards ทั้งหมด'], ['ENT ชั้น 11'], ['Trauma ชั้น 8'], ['Ward อื่นๆ']] }
+  ]);
+
   function tabOf(id, title) {
     var s = store[id];
     if (!s) return null;
@@ -43,6 +59,7 @@
   function parseRange(r) {
     var m = /^(.+?)!([A-Z]+)?(\d+)?(?::([A-Z]+)?(\d+)?)?$/.exec(r);
     if (!m) return null;
+    m[1] = m[1].replace(/^'(.*)'$/, '$1');
     var c1 = m[2] ? colNum(m[2]) : 1, r1 = m[3] ? +m[3] : null;
     var hasEnd = r.indexOf(':') >= 0;
     return { tab: m[1], c1: c1, r1: r1, c2: hasEnd ? (m[4] ? colNum(m[4]) : null) : c1, r2: hasEnd ? (m[5] ? +m[5] : null) : r1 };
@@ -163,5 +180,5 @@
   if (opts.empty) delete mem.wn_registry;
   var auth = { have: function () { return true; }, token: function () { return Promise.resolve('mock-token'); }, expire: function () {} };
 
-  return { fetch: fetchFn, auth: auth, storage: storage, store: store, calls: calls, SEED_ID: SEED_ID };
+  return { fetch: fetchFn, auth: auth, storage: storage, store: store, calls: calls, SEED_ID: SEED_ID, LEGACY_ID: LEGACY_ID };
 });

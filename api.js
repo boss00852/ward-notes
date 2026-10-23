@@ -300,17 +300,15 @@
     return rotationsResult(reg);
   }
 
-  // opts: { name, wards, staffs } wards/staffs เป็นข้อความทีละบรรทัด หรือ array
-  function createRotation(opts) {
-    opts = opts || {};
-    var name = String(opts.name || '').trim();
-    if (!name) return Promise.reject(new Error('ตั้งชื่อ rotation ก่อน'));
-    var wards = C.normalizeWards(opts.wards), staffs = C.normalizeNames(opts.staffs, '');
+  // สร้าง Google Sheet ใหม่ (Main + Staffs + Wards) ใส่ข้อมูลตั้งต้น แล้วลงทะเบียนเป็น rotation ที่ใช้อยู่
+  // rows = แถวคนไข้ (13 ช่องตามหัว Main) ใส่ได้ตอนย้ายข้อมูล; คืน rotationsResult + url
+  function buildRotation(name, wards, staffs, rows) {
+    rows = rows || [];
     var url = '';
     return req('POST', BASE, {
       properties: { title: name, locale: 'th_TH', timeZone: 'Asia/Bangkok' },
       sheets: [
-        { properties: { title: MAIN, gridProperties: { frozenRowCount: 1 } } },
+        { properties: { title: MAIN, gridProperties: { frozenRowCount: 1, rowCount: Math.max(1000, rows.length + 300) } } },
         { properties: { title: STAFFS } },
         { properties: { title: WARDS } }
       ]
@@ -323,6 +321,7 @@
         { range: WARDS + '!A1:A' + (wards.length + 1), values: [[WARDS_HEADER]].concat(wards.map(function (w) { return [w]; })) }
       ];
       if (staffs.length) data.push({ range: STAFFS + '!A1:A' + staffs.length, values: staffs.map(function (s) { return [s]; }) });
+      if (rows.length) data.push({ range: MAIN + '!A2:' + C.a1(MAIN_HEADERS.length, rows.length + 1), values: rows });
       var reqs = [
         { repeatCell: { range: { sheetId: ids[MAIN], startRowIndex: 0, endRowIndex: 1 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: 'userEnteredFormat.textFormat.bold' } },
         { repeatCell: { range: { sheetId: ids[WARDS], startRowIndex: 0, endRowIndex: 1 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: 'userEnteredFormat.textFormat.bold' } },
@@ -341,6 +340,40 @@
       var e2 = new Error(err.message + (url ? ' (สร้างไฟล์ไว้แล้วแต่ยังไม่พร้อมใช้: ' + url + ')' : ''));
       e2.code = err.code;
       throw e2;
+    });
+  }
+
+  // opts: { name, wards, staffs } wards/staffs เป็นข้อความทีละบรรทัด หรือ array
+  function createRotation(opts) {
+    opts = opts || {};
+    var name = String(opts.name || '').trim();
+    if (!name) return Promise.reject(new Error('ตั้งชื่อ rotation ก่อน'));
+    return buildRotation(name, C.normalizeWards(opts.wards), C.normalizeNames(opts.staffs, ''), []);
+  }
+
+  // ย้ายจาก sheet โครงเดิม (แท็บ "ค้าง ward" + "consult" + "Wards") ไปเป็น sheet ใหม่โครง Main/Staffs/Wards
+  // อ่านอย่างเดียว ไม่แก้ sheet ต้นฉบับ opts: { url, name }  คืน rotationsResult + url + stats
+  function importLegacy(opts) {
+    opts = opts || {};
+    var sid = C.extractSheetId(opts.url);
+    if (!sid) return Promise.reject(new Error('ลิงก์หรือ ID ของ sheet ไม่ถูกต้อง'));
+    return req('GET', BASE + '/' + sid + '?fields=' + rng('properties.title,sheets.properties.title')).then(function (ss) {
+      var tabs = (ss.sheets || []).map(function (s) { return s.properties.title; });
+      if (tabs.indexOf('ค้าง ward') < 0 && tabs.indexOf('consult') < 0) {
+        throw new Error('ไม่พบแท็บ "ค้าง ward" หรือ "consult" ใน sheet นี้ (ถ้าเป็นโครงใหม่อยู่แล้ว ให้ใช้ "ผูก sheet ที่มีอยู่")');
+      }
+      var want = ['ค้าง ward', 'consult', WARDS].filter(function (t) { return tabs.indexOf(t) >= 0; });
+      return batchGet(sid, want.map(function (t) { return "'" + t + "'!A1:Z"; })).then(function (vr) {
+        var by = {};
+        want.forEach(function (t, i) { by[t] = vr[i] || []; });
+        var wardsList = firstCol(by[WARDS] || []).slice(1).filter(Boolean);
+        var plan = C.migratePlan(by['ค้าง ward'], by.consult, wardsList);
+        var name = String(opts.name || '').trim() || ((ss.properties && ss.properties.title) || 'Rotation') + ' (โครงใหม่)';
+        return buildRotation(name, C.normalizeWards(wardsList), plan.staffs, plan.rows).then(function (res) {
+          res.stats = plan.stats;
+          return res;
+        });
+      });
     });
   }
 
@@ -363,7 +396,7 @@
     loadAll: loadAll, savePatient: savePatient, addWard: addWard, addStaff: addStaff,
     getWardUsage: getWardUsage, renameWard: renameWard, deleteWard: deleteWard,
     getRotations: getRotations, switchRotation: switchRotation, archiveRotation: archiveRotation,
-    createRotation: createRotation, addRotation: addRotation
+    createRotation: createRotation, addRotation: addRotation, importLegacy: importLegacy
   };
   // ทุกฟังก์ชันคืน Promise เสมอ (error ที่โยนทันทีกลายเป็น rejection)
   var out = {};
