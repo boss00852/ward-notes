@@ -115,11 +115,11 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
 <div id="app"></div>
 <div id="toast" class="toast hidden"></div>
 
-<script src="core.js?v=r13"></script>
-<script src="config.js?v=r13"></script>
-<script src="auth.js?v=r13"></script>
-<script src="api.js?v=r13"></script>
-<script>if (/[?&]mock=1/.test(location.search)) document.write('<script src="mock.js?v=r13"><\/script>');</script>
+<script src="core.js?v=r14"></script>
+<script src="config.js?v=r14"></script>
+<script src="auth.js?v=r14"></script>
+<script src="api.js?v=r14"></script>
+<script>if (/[?&]mock=1/.test(location.search)) document.write('<script src="mock.js?v=r14"><\/script>');</script>
 <script>
 (function () {
   var m = /[?&]mock=1/.test(location.search) ? WNMock.create() : null;
@@ -418,7 +418,7 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
   }
   function openRot() {
     S.scroll = window.scrollY;
-    S.rot = { form: null, busy: false, err: '', confirm: null, showArch: false, nameV: '', wardsV: '', staffsV: '', urlV: '', result: null };
+    S.rot = { form: null, busy: false, err: '', confirm: null, showArch: false, nameV: '', wardsV: '', staffsV: '', urlV: '', result: null, renaming: null, renameV: '', renameFile: true };
     S.view = 'rot'; render(); window.scrollTo(0, 0);
   }
   function rotRow(r) {
@@ -431,6 +431,12 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
         ? '<button class="btn sm warn" data-act="rotarch" data-id="' + r.id + '"' + b + '>ยืนยันเก็บเข้าคลัง?</button>'
         : '<button class="btn sm" data-act="rotarch" data-id="' + r.id + '"' + b + '>เก็บเข้าคลัง</button>';
     }
+    if (R.renaming === r.id) {
+      return '<div class="rcard"><label class="f"><span>ชื่อ rotation</span><input data-r="renameV" type="text" value="' + esc(R.renameV) + '"></label>' +
+        '<label class="chk"><input type="checkbox" data-r="renameFile"' + (R.renameFile ? ' checked' : '') + '> เปลี่ยนชื่อไฟล์ใน Google Sheets ด้วย</label>' +
+        '<div class="rbtns"><button class="btn sm solid" data-act="rotrenamesave"' + b + '>บันทึก</button><button class="btn sm" data-act="rotrenamecancel"' + b + '>ยกเลิก</button></div></div>';
+    }
+    btns += '<button class="btn sm" data-act="rotrename" data-id="' + r.id + '"' + b + '>เปลี่ยนชื่อ</button>';
     return '<div class="rcard' + (on ? ' on' : '') + '"><div class="row between"><div style="min-width:0"><div class="nm" style="font-size:17px">' + esc(r.name) + '</div></div>' +
       (on ? '<span class="badge b-pod">กำลังใช้</span>' : '') + '</div>' +
       '<div class="rbtns">' + btns + '<a class="rlink" target="_blank" rel="noopener" href="https://docs.google.com/spreadsheets/d/' + esc(r.sheetId) + '/edit">เปิดใน Sheets</a></div></div>';
@@ -586,7 +592,7 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
   var searchTimer;
   app.addEventListener('input', function (ev) {
     var rk = ev.target.getAttribute && ev.target.getAttribute('data-r');
-    if (rk && S.rot) { S.rot[rk] = ev.target.value; return; }
+    if (rk && S.rot) { if (ev.target.type !== 'checkbox') S.rot[rk] = ev.target.value; return; }
     var wk = ev.target.getAttribute && ev.target.getAttribute('data-w');
     if (wk && S.wm) { S.wm[wk] = ev.target.value; return; }
     if (ev.target.classList && ev.target.classList.contains('grow')) autosize(ev.target);
@@ -605,6 +611,7 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
   });
   app.addEventListener('change', function (ev) {
     var n = ev.target;
+    if (n.getAttribute && n.getAttribute('data-r') === 'renameFile' && S.rot) { S.rot.renameFile = n.checked; return; }
     if (n.getAttribute && n.getAttribute('data-f') === 'ward') {
       readForm(); // เก็บค่าที่พิมพ์ค้างไว้ก่อน ไม่งั้น render ใหม่แล้วหาย
       if (n.value === '__new__') {
@@ -674,6 +681,19 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
       render();
     }
     else if (act === 'rotarchtoggle') { S.rot.showArch = !S.rot.showArch; render(); }
+    else if (act === 'rotrename') {
+      var cur = (S.data.rotations || []).filter(function (x) { return x.id === id; })[0];
+      S.rot.renaming = id; S.rot.renameV = cur ? cur.name : ''; S.rot.renameFile = true; S.rot.confirm = null; S.rot.err = ''; render();
+    }
+    else if (act === 'rotrenamecancel') { S.rot.renaming = null; S.rot.err = ''; render(); }
+    else if (act === 'rotrenamesave') {
+      var rid = S.rot.renaming;
+      if (!String(S.rot.renameV).trim()) { S.rot.err = 'ใส่ชื่อ rotation ก่อน'; render(); return; }
+      rotRun('renameRotation', [rid, S.rot.renameV, !!S.rot.renameFile], function (res) {
+        S.data.rotations = res.rotations; S.rot.renaming = null; cacheSave(); render();
+        toast(res.fileRenamed === false ? 'เปลี่ยนชื่อในแอปแล้ว แต่เปลี่ยนชื่อไฟล์ใน Sheets ไม่ได้' : 'เปลี่ยนชื่อแล้ว');
+      });
+    }
     else if (act === 'rotuse') { rotRun('switchRotation', [id], afterSwitch); }
     else if (act === 'rotarch') {
       if (S.rot.confirm !== id) { S.rot.confirm = id; render(); return; }

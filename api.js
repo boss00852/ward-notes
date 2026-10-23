@@ -342,6 +342,23 @@
     } catch (e) { return Promise.reject(e); }
   }
 
+  // เปลี่ยนชื่อ rotation ในแอป (เก็บในเครื่อง) และถ้า alsoFile = true พยายามเปลี่ยนชื่อไฟล์ Google Sheets ด้วย
+  // เปลี่ยนชื่อไฟล์ไม่สำเร็จ (เช่น ไม่มีสิทธิ์แก้ไฟล์) ไม่ทำให้การเปลี่ยนชื่อในแอปล้มเหลว: คืน fileRenamed = false
+  function renameRotation(id, newName, alsoFile) {
+    var name = String(newName == null ? '' : newName).replace(/\s+/g, ' ').trim();
+    if (!name) return Promise.reject(new Error('ใส่ชื่อ rotation ก่อน'));
+    if (name.length > 100) return Promise.reject(new Error('ชื่อยาวเกิน 100 ตัวอักษร'));
+    var reg = regRead();
+    var hit = reg.list.filter(function (r) { return r.id === id; })[0];
+    if (!hit) return Promise.reject(new Error('ไม่พบ rotation นี้ กรุณารีเฟรช'));
+    hit.name = name; regWrite(reg);
+    var res = rotationsResult(reg);
+    if (!alsoFile) return Promise.resolve(res);
+    return structBatch(hit.sheetId, [{ updateSpreadsheetProperties: { properties: { title: name }, fields: 'title' } }])
+      .then(function () { res.fileRenamed = true; return res; },
+        function (e) { if (e && e.code === 'AUTH') throw e; res.fileRenamed = false; res.fileError = e && e.message; return res; });
+  }
+
   function register(name, sheetId) {
     var reg = regRead();
     var entry = { id: newId(), name: name, sheetId: sheetId, archived: false, createdAt: new Date(env.now()).toISOString() };
@@ -446,7 +463,7 @@
     getWardUsage: getWardUsage, renameWard: renameWard, deleteWard: deleteWard,
     getStaffUsage: getStaffUsage, renameStaff: renameStaff, deleteStaff: deleteStaff,
     getRotations: getRotations, switchRotation: switchRotation, archiveRotation: archiveRotation,
-    createRotation: createRotation, addRotation: addRotation, importLegacy: importLegacy
+    createRotation: createRotation, addRotation: addRotation, importLegacy: importLegacy, renameRotation: renameRotation
   };
   // ทุกฟังก์ชันคืน Promise เสมอ (error ที่โยนทันทีกลายเป็น rejection)
   var out = {};

@@ -133,6 +133,7 @@
       var sh2 = store[m[1]];
       if (!sh2) return fail(404, 'Requested entity was not found.');
       body.requests.forEach(function (rq) {
+        if (rq.updateSpreadsheetProperties) { sh2.title = rq.updateSpreadsheetProperties.properties.title; return; }
         var dim = rq.insertDimension || rq.deleteDimension;
         if (!dim) return; // รูปแบบ/validation ไม่จำลอง
         var t = sh2.tabs.filter(function (x) { return x.sheetId === dim.range.sheetId; })[0];
