@@ -115,11 +115,11 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
 <div id="app"></div>
 <div id="toast" class="toast hidden"></div>
 
-<script src="core.js"></script>
-<script src="config.js"></script>
-<script src="auth.js"></script>
-<script src="api.js"></script>
-<script>if (/[?&]mock=1/.test(location.search)) document.write('<script src="mock.js"><\/script>');</script>
+<script src="core.js?v=r13"></script>
+<script src="config.js?v=r13"></script>
+<script src="auth.js?v=r13"></script>
+<script src="api.js?v=r13"></script>
+<script>if (/[?&]mock=1/.test(location.search)) document.write('<script src="mock.js?v=r13"><\/script>');</script>
 <script>
 (function () {
   var m = /[?&]mock=1/.test(location.search) ? WNMock.create() : null;
@@ -151,7 +151,10 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
   // เรียก "เซิร์ฟเวอร์" ฝั่งเบราว์เซอร์ (api.js -> Google Sheets API) ชื่อและผลลัพธ์เหมือนเวอร์ชัน Apps Script
   function call(fn) {
     var args = Array.prototype.slice.call(arguments, 1);
-    return Promise.resolve().then(function () { return WNServer[fn].apply(null, args); })
+    return Promise.resolve().then(function () {
+      if (typeof WNServer[fn] !== 'function') throw new Error('ไฟล์ของแอปไม่ตรงเวอร์ชันกัน (ค้างแคช) ปิดแอปแล้วเปิดใหม่ ถ้ายังไม่หายให้ล้างข้อมูลไซต์');
+      return WNServer[fn].apply(null, args);
+    })
       .catch(function (e) { throw new Error((e && e.message) || String(e)); });
   }
   function toast(msg) {
