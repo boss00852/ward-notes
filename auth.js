@@ -1,5 +1,5 @@
 /* ลงชื่อเข้าใช้ด้วย Google (Google Identity Services, token model) ได้ access token สำหรับเรียก Sheets API
- * token อยู่ในหน่วยความจำ + sessionStorage (หมดอายุราว 1 ชม.) ไม่มี refresh token ไม่มีเซิร์ฟเวอร์ */
+ * token อยู่ในหน่วยความจำ + localStorage (อยู่รอดการปิด/เปิดแอป จนหมดอายุราว 1 ชม.) ไม่มี refresh token ไม่มีเซิร์ฟเวอร์ */
 (function (root) {
   'use strict';
   var SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
@@ -9,8 +9,12 @@
 
   function create(cfg) {
     var tok = null, exp = 0, client = null, pending = null;
+    var store = (function () {
+      try { root.localStorage.setItem('wn_t', '1'); root.localStorage.removeItem('wn_t'); return root.localStorage; }
+      catch (e) { try { return root.sessionStorage; } catch (e2) { return null; } }
+    })();
     try {
-      var saved = JSON.parse(sessionStorage.getItem(KEY) || 'null');
+      var saved = JSON.parse(store.getItem(KEY) || 'null');
       if (saved && saved.exp > Date.now() + 60000) { tok = saved.tok; exp = saved.exp; }
     } catch (e) { /* ignore */ }
 
@@ -40,7 +44,7 @@
           client.callback = function (r) {
             if (r.error) return reject(AuthError());
             tok = r.access_token; exp = Date.now() + (Number(r.expires_in) || 3600) * 1000;
-            try { sessionStorage.setItem(KEY, JSON.stringify({ tok: tok, exp: exp })); } catch (e) { /* ignore */ }
+            try { store.setItem(KEY, JSON.stringify({ tok: tok, exp: exp })); } catch (e) { /* ignore */ }
             resolve(tok);
           };
           client.error_callback = function () { reject(AuthError()); };
@@ -53,7 +57,7 @@
     return {
       have: have,
       token: function () { return have() ? Promise.resolve(tok) : request(''); },
-      expire: function () { tok = null; exp = 0; try { sessionStorage.removeItem(KEY); } catch (e) { /* ignore */ } },
+      expire: function () { tok = null; exp = 0; try { store.removeItem(KEY); } catch (e) { /* ignore */ } },
       AuthError: AuthError
     };
   }
