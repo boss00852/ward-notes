@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Ward Notes</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4F6F5; --card:#FFFFFF; --line:#E1E6E4; --field:#CBD3D0;
+  --ink:#17222A; --muted:#5A666C; --accent:#0F766E; --accent-ink:#0B5F58; --accent-bg:#E3F1EF;
+  --amber-ink:#7A4A00; --amber-bg:#FBEFD5; --blue-ink:#1D4F91; --blue-bg:#E6EEF9;
+  --gray-bg:#E8ECEA; --danger:#B42318;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#101719; --card:#18222A; --line:#2A3740; --field:#3A4A55;
+    --ink:#EAF0F1; --muted:#9AA9B0; --accent:#2BB3A6; --accent-ink:#7FE0D6; --accent-bg:#14403D;
+    --amber-ink:#F3C77A; --amber-bg:#44330F; --blue-ink:#9CC2F5; --blue-bg:#1B3250;
+    --gray-bg:#24313A; --danger:#FF8A80;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Noto Sans Thai',system-ui,sans-serif;-webkit-text-size-adjust:100%}
+button,input,select,textarea{font-family:inherit;color:var(--ink)}
+button{cursor:pointer}
+#app{max-width:520px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+
+.top{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);padding:calc(14px + env(safe-area-inset-top)) 16px 10px;display:flex;flex-direction:column;gap:12px}
+.row{display:flex;align-items:center;gap:8px}
+.between{justify-content:space-between}
+h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
+.sub{font-size:13px;color:var(--muted)}
+.iconbtn{width:44px;height:44px;border:1px solid var(--field);border-radius:22px;background:var(--card);display:flex;align-items:center;justify-content:center}
+.search{display:flex;align-items:center;gap:10px;height:48px;padding:0 14px;border:1px solid var(--field);border-radius:12px;background:var(--bg)}
+.search input{flex:1;min-width:0;border:0;outline:0;background:transparent;font-size:16px}
+.seg{display:grid;gap:6px;padding:4px;background:var(--gray-bg);border-radius:14px}
+.seg button{height:44px;border:0;border-radius:10px;background:transparent;font-size:15px;font-weight:500}
+.seg button.on{background:var(--card);color:var(--accent-ink);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;height:44px;padding:0 16px;border:1px solid var(--field);border-radius:22px;background:var(--card);font-size:15px;font-weight:500;white-space:nowrap}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+
+.list{padding:4px 16px calc(96px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px}
+.group{display:flex;align-items:center;justify-content:space-between;padding:14px 4px 0}
+.group h2{margin:0;font-size:15px;font-weight:600;color:var(--muted)}
+.card{display:flex;flex-direction:column;gap:6px;width:100%;text-align:left;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-radius:16px}
+.card .l1{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.card .who{display:flex;flex-direction:column;min-width:0}
+.nm{font-size:20px;line-height:1.25;font-weight:700;overflow-wrap:anywhere}
+.tophead .sub{font-size:14px}
+.card .hn{font-size:14px;color:var(--muted)}
+.card .dx{font-size:15px;font-weight:500}
+.tophead{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.topdx{font-size:15px;font-weight:500;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.toppod{display:flex;align-items:flex-start;gap:8px;max-width:100%}
+.topop{font-size:15px;font-weight:500;overflow-wrap:anywhere;white-space:pre-line;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card .op{font-size:14px;line-height:1.45;white-space:pre-line;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.card .meta{font-size:14px;color:var(--muted)}
+.card .note{margin-top:4px;padding-top:8px;border-top:1px solid var(--line);font-size:14px;line-height:1.45;white-space:pre-line;overflow-wrap:anywhere}
+.badge{flex:none;padding:3px 10px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap}
+.b-pod{background:var(--accent-bg);color:var(--accent-ink)}
+.b-soon{background:var(--amber-bg);color:var(--amber-ink)}
+.b-off{background:var(--gray-bg);color:var(--muted)}
+.empty{padding:48px 16px;text-align:center;color:var(--muted);font-size:15px}
+
+.fab{position:fixed;right:max(20px,calc(50% - 240px));bottom:calc(24px + env(safe-area-inset-bottom));width:60px;height:60px;border:0;border-radius:30px;background:var(--accent);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(15,118,110,.35)}
+
+.form{padding:16px 16px 0;display:flex;flex-direction:column;gap:16px;flex:1}
+.f{display:flex;flex-direction:column;gap:6px}
+.f>span,.lbl{font-size:14px;font-weight:600;color:var(--muted)}
+.f input,.f select,.f textarea{width:100%;min-height:48px;padding:0 12px;border:1px solid var(--field);border-radius:12px;background:var(--card);font-size:16px}
+.f textarea{padding:12px;line-height:1.5;resize:vertical;min-height:96px}
+.f textarea.grow{min-height:48px;height:48px;resize:vertical;overflow:hidden}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.bar{position:sticky;bottom:0;margin-top:auto;padding:12px 16px calc(16px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--line);display:flex;gap:10px}
+.btn{height:52px;border:1px solid var(--field);border-radius:14px;background:var(--card);font-size:16px;font-weight:600;padding:0 18px}
+.btn.primary{flex:2;border:0;background:var(--accent);color:#fff;font-weight:700}
+.btn.ghost{flex:1}
+.btn:disabled{opacity:.55}
+.addward{display:flex;gap:8px}
+.addward input{flex:1}
+.addward button{height:48px;padding:0 16px;border:0;border-radius:12px;background:var(--accent);color:#fff;font-weight:600;font-size:15px}
+.err{color:var(--danger);font-size:14px;line-height:1.4}
+.toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#17222A;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:20;max-width:90%}
+/* rotation */
+.rotchip{display:inline-flex;align-items:center;gap:4px;flex:0 1 auto;min-width:0;min-height:44px;padding:0 12px;border:1px solid var(--field);border-radius:22px;background:var(--accent-bg);color:var(--accent-ink);font-size:14px;font-weight:600}
+.rotchip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rsec{padding:8px 16px 0;display:flex;flex-direction:column;gap:10px}
+.rsec h2{margin:12px 4px 0;font-size:15px;font-weight:600;color:var(--muted)}
+.rcard{display:flex;flex-direction:column;gap:10px;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-radius:16px}
+.rcard.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.rbtns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn.sm{height:44px;font-size:15px;padding:0 16px}
+.btn.warn{border-color:var(--danger);color:var(--danger)}
+.btn.solid{border:0;background:var(--accent);color:#fff}
+.rlink{font-size:13px;color:var(--accent-ink);text-decoration:underline;display:inline-flex;align-items:center;min-height:44px}
+.rform{display:flex;flex-direction:column;gap:12px;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-radius:16px}
+.chk{display:flex;align-items:center;gap:10px;min-height:44px;font-size:15px}
+.chk input{width:22px;height:22px}
+.wrow{display:flex;flex-direction:column;gap:10px;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-radius:16px}
+.wwarn{font-size:14px;line-height:1.45;color:var(--danger)}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" class="toast hidden"></div>
+
+<script src="core.js"></script>
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script src="api.js"></script>
+<script>if (/[?&]mock=1/.test(location.search)) document.write('<script src="mock.js"><\/script>');</script>
+<script>
+(function () {
+  var m = /[?&]mock=1/.test(location.search) ? WNMock.create() : null;
+  window.WNServer = WNApi.createServer(m
+    ? { core: WN, fetch: m.fetch, auth: m.auth, storage: m.storage, now: Date.now }
+    : { core: WN, fetch: window.fetch.bind(window), auth: WNAuth.create(window.WN_CONFIG), storage: window.localStorage, now: Date.now });
+  if (m) document.title += ' [ทดสอบ]';
+})();
+</script>
+<script>
+(function () {
+  'use strict';
+  var SHOW_TIMING = true; // ตอนทดสอบความเร็ว: แสดงเวลาโหลด/บันทึกใต้หัวข้อ (ตั้ง false เพื่อปิด)
+  var PAGE = 80; // จำนวนการ์ดที่วาดต่อครั้ง กันหน้าช้าเมื่อข้อมูลเยอะ
+
+  var FIELDS = ['status','ward','hn','name','age','sex','dx','op','anes','staff','consultDate','opDate','note'];
+  var DATE_FIELDS = { consultDate: 1, opDate: 1 };
+  var S = { data: { patients: [], wards: [], staffs: [] }, status: 'in service', q: '', view: 'list', edit: null, loading: true, error: '', saving: false, addingWard: false, addingStaff: false, scroll: 0, limit: PAGE, rotationId: null, rot: null, wm: null, timing: '', refreshing: false, fromCache: false, cacheNote: '' };
+  var app = document.getElementById('app');
+
+  /* ---------- helpers ---------- */
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  // เรียก "เซิร์ฟเวอร์" ฝั่งเบราว์เซอร์ (api.js -> Google Sheets API) ชื่อและผลลัพธ์เหมือนเวอร์ชัน Apps Script
+  function call(fn) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return Promise.resolve().then(function () { return WNServer[fn].apply(null, args); })
+      .catch(function (e) { throw new Error((e && e.message) || String(e)); });
+  }
+  function toast(msg) {
+    var t = document.getElementById('toast');
+    t.textContent = msg; t.classList.remove('hidden');
+    clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.add('hidden'); }, 2200);
+  }
+  // วันที่/POD อยู่ใน core.html (มีเทสต์)
+  var toISO = Core.toISO, fromISO = Core.fromISO, todayISO = Core.todayISO;
+
+  // badge วันผ่า: ผ่าแล้ว = POD n, ยังไม่ผ่า = ผ่าในอีก n วัน
+  function podBadge(p) {
+    var x = Core.pod(p.opDate);
+    if (!x) return '';
+    return x.kind === 'pod' ? '<span class="badge b-pod">POD ' + x.n + '</span>'
+      : '<span class="badge b-soon">ผ่าในอีก ' + x.n + ' วัน</span>';
+  }
+  // บล็อกข้อมูลคนไข้ใช้ร่วมกันระหว่างการ์ดหน้าแรกกับแถบบนของฟอร์ม
+  // ชื่อ / อายุ·เพศ·HN / Dx / (POD + Op: หรือ S/P:) / Staff
+  function infoBlock(p) {
+    var line = [p.age ? 'อายุ ' + p.age : '', p.sex || '', p.hn ? 'HN ' + p.hn : ''].filter(Boolean).join(' · ');
+    var x = Core.pod(p.opDate);
+    var opLabel = x && x.kind === 'pod' ? 'S/P: ' : 'Op: ';
+    var pb = podBadge(p);
+    return '<div class="nm">' + esc(p.name || '(ไม่มีชื่อ)') + '</div>' +
+      (line ? '<div class="sub">' + esc(line) + '</div>' : '') +
+      (p.dx ? '<div class="topdx">Dx : ' + esc(p.dx) + '</div>' : '') +
+      (pb || p.op ? '<div class="toppod">' + pb + (p.op ? '<span class="topop">' + opLabel + esc(p.op) + '</span>' : '') + '</div>' : '') +
+      (p.staff ? '<div class="topdx">Staff : ' + esc(p.staff) + '</div>' : '');
+  }
+
+  /* ---------- data ---------- */
+  function fmtMs(ms) { return (ms / 1000).toFixed(1) + 's'; }
+  // สำเนาข้อมูลล่าสุดในเครื่อง (localStorage) ให้เปิดแอปแล้วเห็นรายการทันที แล้วอัปเดตเบื้องหลัง
+  // เปิด/ปิด และล้างได้ในหน้า rotation เพราะมีข้อมูลคนไข้
+  var CACHE_KEY = 'wn_cache_v1', CACHE_ON_KEY = 'wn_cache_on';
+  function cacheOn() { try { return localStorage.getItem(CACHE_ON_KEY) !== '0'; } catch (e) { return false; } }
+  function cacheSave() {
+    if (!cacheOn()) return;
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ v: 1, t: Date.now(), data: S.data })); } catch (e) { /* เต็ม/ถูกบล็อก: ข้ามไป */ }
+  }
+  function cacheLoad() {
+    if (!cacheOn()) return null;
+    try {
+      var o = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+      var d = o && o.v === 1 && o.data;
+      return d && Array.isArray(d.patients) && Array.isArray(d.wards) && Array.isArray(d.staffs) && Array.isArray(d.rotations) && d.rotationId ? o : null;
+    } catch (e) { return null; }
+  }
+  function cacheClear() { try { localStorage.removeItem(CACHE_KEY); } catch (e) { /* ignore */ } }
+  function hhmm(t) { var d = new Date(t); return d.getHours() + ':' + pad2(d.getMinutes()); }
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+  function load(quiet) {
+    if (!quiet) { S.loading = true; render(); }
+    S.refreshing = true;
+    var t0 = performance.now();
+    return call('loadAll', S.rotationId).then(function (d) {
+      S.timing = 'โหลด ' + fmtMs(performance.now() - t0) + ' (server ' + fmtMs(d.ms) + ') · ' + d.patients.length + ' แถว';
+      S.data = d; S.rotationId = d.rotationId; S.loading = false; S.error = '';
+      S.refreshing = false; S.fromCache = false; cacheSave();
+      if (!d.rotationId && S.view === 'list') { S.timing = ''; openRot(); return; } // ยังไม่มี rotation: ไปหน้าเพิ่ม rotation
+      if (S.view !== 'form') render(); // อย่า render ทับฟอร์มที่กำลังพิมพ์อยู่
+    }).catch(function (e) {
+      S.refreshing = false; S.loading = false;
+      if (S.fromCache && /ไม่พบ rotation/.test(e.message)) { // rotation ในสำเนาถูกลบไปแล้ว
+        S.fromCache = false; S.rotationId = null; cacheClear(); return load(false);
+      }
+      if (S.fromCache) {
+        toast(/ลงชื่อเข้าใช้/.test(e.message) ? 'แตะปุ่มรีเฟรชเพื่อลงชื่อเข้าใช้ Google' : 'อัปเดตไม่ได้ แสดงข้อมูลที่เก็บไว้ในเครื่อง');
+        if (S.view !== 'form') render();
+        return;
+      }
+      S.error = e.message; render();
+    });
+  }
+
+  /* ---------- list view ---------- */
+  function visible() {
+    var q = S.q.trim().toLowerCase();
+    return S.data.patients.filter(function (p) {
+      if (S.status !== 'all' && (p.status || '') !== S.status) return false;
+      if (q && (p.hn || '').toLowerCase().indexOf(q) < 0 && (p.name || '').toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    });
+  }
+  function count(status) {
+    return S.data.patients.filter(function (p) {
+      return status === 'all' || (p.status || '') === status;
+    }).length;
+  }
+  function listView() {
+    var all = visible();
+    all.sort(function (a, b) { return b.row - a.row; });
+    var items = all.slice(0, S.limit);
+    var groups = {}, order = [];
+    items.forEach(function (p) {
+      var w = p.ward || 'ไม่ระบุ ward';
+      if (!groups[w]) { groups[w] = []; order.push(w); }
+      groups[w].push(p);
+    });
+    var rank = {}; S.data.wards.forEach(function (w, i) { rank[w] = i; });
+    order.sort(function (a, b) { return (rank[a] == null ? 999 : rank[a]) - (rank[b] == null ? 999 : rank[b]); });
+
+    var body = '';
+    if (S.loading) body = '<div class="empty">กำลังโหลด…</div>';
+    else if (S.error) body = '<div class="empty err">' + esc(S.error) + '<br><br><button class="btn" data-act="reload">' + (/ลงชื่อเข้าใช้|Client ID/.test(S.error) ? 'ลงชื่อเข้าใช้ Google' : 'ลองใหม่') + '</button></div>';
+    else if (!items.length) body = '<div class="empty">ไม่มีรายการ</div>';
+    else order.forEach(function (w) {
+      body += '<div class="group"><h2>' + esc(w) + '</h2><span class="sub">' + groups[w].length + ' ราย</span></div>';
+      groups[w].forEach(function (p) {
+        var recv = Core.parseDate(p.consultDate) ? 'รับเคส ' + p.consultDate : '';
+        body += '<button class="card" data-act="open" data-row="' + p.row + '">' +
+          '<div class="l1"><div class="tophead">' + infoBlock(p) + '</div>' +
+          (p.status === 'off service' ? '<span class="badge b-off">off service</span>' : '') + '</div>' +
+          (recv ? '<div class="meta">' + esc(recv) + '</div>' : '') +
+          (p.note ? '<div class="note">' + esc(p.note) + '</div>' : '') +
+          '</button>';
+      });
+    });
+    if (all.length > items.length) {
+      body += '<button class="btn" data-act="more">แสดงเพิ่ม (' + items.length + ' จาก ' + all.length + ')</button>';
+    }
+
+    var today = new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+    return '<div class="top">' +
+      '<div class="row between"><div style="min-width:0;flex:1"><div class="row" style="gap:10px"><h1 style="white-space:nowrap">Ward Notes</h1><button class="rotchip" data-act="rot" aria-label="สลับ rotation"><span>' + esc(rotName()) + '</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div><div class="sub">วันนี้ ' + esc(today) + (S.fromCache ? ' · ข้อมูลเมื่อ ' + esc(S.cacheNote) + (S.refreshing ? ' · กำลังอัปเดต…' : '') : (SHOW_TIMING && S.timing ? ' · ' + esc(S.timing) : '')) + '</div></div>' +
+      '<button class="iconbtn" data-act="reload" aria-label="รีเฟรช"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button></div>' +
+      '<label class="search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>' +
+      '<input id="q" type="search" placeholder="ค้นหา HN หรือชื่อ" aria-label="ค้นหา" value="' + esc(S.q) + '"></label>' +
+      '<div class="chips">' +
+      chip('in service', 'in service ' + count('in service')) +
+      chip('off service', 'off service ' + count('off service')) +
+      chip('all', 'ทั้งหมด ' + count('all')) + '</div></div>' +
+      '<div class="list">' + body + '</div>' +
+      '<button class="fab" data-act="new" aria-label="เพิ่มคนไข้"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>';
+  }
+  function chip(v, label) {
+    return '<button class="chip ' + (S.status === v ? 'on' : '') + '" data-act="status" data-v="' + v + '">' + esc(label) + '</button>';
+  }
+
+  /* ---------- form view ---------- */
+  function openForm(row) {
+    var p = null;
+    if (row) p = S.data.patients.filter(function (x) { return x.row === row; })[0];
+    S.scroll = window.scrollY;
+    if (p) {
+      S.edit = { row: row, orig: p, v: {} };
+      FIELDS.forEach(function (k) { S.edit.v[k] = DATE_FIELDS[k] ? toISO(p[k]) : (p[k] || ''); });
+    } else {
+      S.edit = { row: null, orig: {}, v: {} };
+      FIELDS.forEach(function (k) { S.edit.v[k] = ''; });
+      S.edit.v.status = 'in service';
+      S.edit.v.sex = 'ชาย';
+      S.edit.v.consultDate = todayISO();
+    }
+    S.view = 'form'; S.error = ''; S.addingWard = false; S.addingStaff = false;
+    render(); window.scrollTo(0, 0);
+  }
+  function field(label, key, type, extra) {
+    return '<label class="f"><span>' + label + '</span><input data-f="' + key + '" type="' + (type || 'text') + '" value="' + esc(S.edit.v[key]) + '" ' + (extra || '') + '></label>';
+  }
+  // ช่องข้อความเริ่มบรรทัดเดียว ขยายตามที่พิมพ์ (และลากขยายเองได้)
+  function staffSelect() {
+    var v = S.edit.v, list = S.data.staffs.slice();
+    if (v.staff && list.indexOf(v.staff) < 0) list.unshift(v.staff);
+    return '<label class="f"><span>staff</span><select data-f="staff"><option value="">เลือก staff</option>' + list.map(function (n) {
+      return '<option value="' + esc(n) + '"' + (n === v.staff ? ' selected' : '') + '>' + esc(n) + '</option>';
+    }).join('') + '<option value="__new__">+ เพิ่ม staff ใหม่</option></select></label>';
+  }
+  function growfield(label, key) {
+    return '<label class="f"><span>' + label + '</span><textarea data-f="' + key + '" class="grow" rows="1">' + esc(S.edit.v[key]) + '</textarea></label>';
+  }
+  function autosize(t) { t.style.height = 'auto'; t.style.height = Math.max(48, t.scrollHeight) + 'px'; }
+  function formView() {
+    var e = S.edit, v = e.v, isNew = !e.row;
+    var wards = S.data.wards.slice();
+    if (v.ward && wards.indexOf(v.ward) < 0) wards.unshift(v.ward);
+    var wopts = '<option value="">เลือก ward</option>' + wards.map(function (w) {
+      return '<option value="' + esc(w) + '"' + (w === v.ward ? ' selected' : '') + '>' + esc(w) + '</option>';
+    }).join('') + '<option value="__new__">+ เพิ่ม ward ใหม่</option>';
+
+    // แถบบน: ใช้ข้อมูลที่บันทึกแล้ว (ไม่ขยับตามที่กำลังพิมพ์)
+    var info = isNew ? '<h1 style="font-size:20px">เพิ่มคนไข้ใหม่</h1>' : infoBlock(e.orig);
+
+    return '<div class="top"><div class="row"><button class="iconbtn" data-act="back" aria-label="กลับ"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>' +
+      '<div class="tophead">' + info + '</div></div></div>' +
+      '<div class="form">' +
+      '<div class="f"><span>สถานะ</span><div class="seg" style="grid-template-columns:1fr 1fr">' +
+      '<button data-act="fset" data-k="status" data-v="in service" class="' + (v.status === 'in service' ? 'on' : '') + '">in service</button>' +
+      '<button data-act="fset" data-k="status" data-v="off service" class="' + (v.status === 'off service' ? 'on' : '') + '">off service</button></div></div>' +
+      field('ชื่อ สกุล', 'name', 'text', 'autocomplete="off"') +
+      '<div class="grid2">' + field('HN', 'hn', 'text', 'inputmode="numeric" autocomplete="off"') + field('อายุ', 'age', 'text', 'inputmode="decimal"') + '</div>' +
+      '<div class="f"><span>เพศ</span><div class="seg" style="grid-template-columns:1fr 1fr">' +
+      '<button data-act="fset" data-k="sex" data-v="ชาย" class="' + (v.sex === 'ชาย' ? 'on' : '') + '">ชาย</button>' +
+      '<button data-act="fset" data-k="sex" data-v="หญิง" class="' + (v.sex === 'หญิง' ? 'on' : '') + '">หญิง</button></div></div>' +
+      '<label class="f"><span>ward ที่อยู่</span><select data-f="ward">' + wopts + '</select></label>' +
+      (S.addingWard ? '<div class="addward"><input id="newward" type="text" placeholder="ชื่อ ward ใหม่" style="min-height:48px;padding:0 12px;border:1px solid var(--field);border-radius:12px;background:var(--card);font-size:16px"><button data-act="addward">เพิ่ม</button></div>' : '') +
+      growfield('Diagnosis', 'dx') +
+      growfield('Operation / Management', 'op') +
+      '<div class="grid2">' + field('Anes', 'anes') + staffSelect() + '</div>' +
+      (S.addingStaff ? '<div class="addward"><input id="newstaff" type="text" placeholder="ชื่อ staff ใหม่" style="min-height:48px;padding:0 12px;border:1px solid var(--field);border-radius:12px;background:var(--card);font-size:16px"><button data-act="addstaff">เพิ่ม</button></div>' : '') +
+      '<div class="grid2">' + field('วันรับเคส', 'consultDate', 'date') + field('วันที่ผ่า', 'opDate', 'date') + '</div>' +
+      '<label class="f"><span>หมายเหตุ</span><textarea data-f="note">' + esc(v.note) + '</textarea></label>' +
+      (S.error ? '<div class="err">' + esc(S.error) + '</div>' : '') +
+      '</div>' +
+      '<div class="bar"><button class="btn ghost" data-act="back">ยกเลิก</button>' +
+      '<button class="btn primary" data-act="save"' + (S.saving ? ' disabled' : '') + '>' + (S.saving ? 'กำลังบันทึก…' : 'บันทึก') + '</button></div>';
+  }
+
+  function readForm() {
+    var nodes = app.querySelectorAll('[data-f]');
+    Array.prototype.forEach.call(nodes, function (n) {
+      var k = n.getAttribute('data-f');
+      if ((k === 'ward' || k === 'staff') && n.value === '__new__') return;
+      S.edit.v[k] = n.value;
+    });
+  }
+
+  // ใส่ค่าที่เพิ่งบันทึกลงรายการในเครื่อง (ช่องว่าง = ลบ key) แถวใหม่ใช้เลขแถวที่เซิร์ฟเวอร์ส่งกลับ
+  function applyLocal(e, fields, row) {
+    var p = e.row ? S.data.patients.filter(function (x) { return x.row === e.row; })[0] : null;
+    if (!p) { p = { row: row }; S.data.patients.push(p); }
+    Object.keys(fields).forEach(function (k) { if (fields[k]) p[k] = fields[k]; else delete p[k]; });
+  }
+
+  function save() {
+    readForm();
+    var e = S.edit, v = e.v;
+    if (!String(v.hn).trim() && !String(v.name).trim()) { S.error = 'ใส่ HN หรือชื่ออย่างน้อยหนึ่งอย่าง'; render(); return; }
+    var fields = {};
+    FIELDS.forEach(function (k) {
+      var cur = DATE_FIELDS[k] ? v[k] : String(v[k]).trim();
+      if (e.row) {
+        var origCmp = DATE_FIELDS[k] ? toISO(e.orig[k]) : String(e.orig[k] || '').trim();
+        if (cur === origCmp) return; // ไม่เปลี่ยน ไม่แตะค่าเดิมใน sheet
+      } else if (!cur) return;
+      fields[k] = DATE_FIELDS[k] ? fromISO(cur) : cur;
+    });
+    if (e.row && !Object.keys(fields).length) { back(); return; }
+    S.saving = true; S.error = ''; render();
+    var payload = { rotationId: S.rotationId, row: e.row, fields: fields };
+    if (e.row) { payload.expectHn = e.orig.hn || ''; payload.expectName = e.orig.name || ''; }
+    var ts = performance.now(), srv = 0;
+    call('savePatient', payload)
+      .then(function (r) {
+        S.saving = false; srv = r && r.ms;
+        applyLocal(e, fields, r && r.row); cacheSave(); // ไม่โหลดทั้งตารางใหม่ (ช้า) แค่อัปเดตรายการในเครื่องตามที่เพิ่งเขียน
+        S.timing = 'บันทึก ' + fmtMs(performance.now() - ts) + ' (server ' + fmtMs(srv || 0) + ')';
+        toast('บันทึกแล้ว'); S.view = 'list'; render(); window.scrollTo(0, S.scroll); })
+      .catch(function (err) { S.saving = false; S.error = err.message; render(); });
+  }
+
+  function back() { S.view = 'list'; S.edit = null; S.error = ''; render(); window.scrollTo(0, S.scroll); }
+
+  /* ---------- render + events ---------- */
+  /* ---------- rotation ---------- */
+  function rotName() {
+    var r = (S.data.rotations || []).filter(function (x) { return x.id === S.rotationId; })[0];
+    return r ? r.name : 'Rotation';
+  }
+  function openRot() {
+    S.scroll = window.scrollY;
+    S.rot = { form: null, busy: false, err: '', confirm: null, showArch: false, nameV: '', wardsV: '', staffsV: '', urlV: '' };
+    S.view = 'rot'; render(); window.scrollTo(0, 0);
+  }
+  function rotRow(r) {
+    var R = S.rot, on = r.id === S.rotationId, b = R.busy ? ' disabled' : '';
+    var btns = '';
+    if (r.archived) btns = '<button class="btn sm" data-act="rotunarch" data-id="' + r.id + '"' + b + '>เอากลับมาใช้</button>';
+    else {
+      if (!on) btns += '<button class="btn sm solid" data-act="rotuse" data-id="' + r.id + '"' + b + '>ใช้อันนี้</button>';
+      btns += R.confirm === r.id
+        ? '<button class="btn sm warn" data-act="rotarch" data-id="' + r.id + '"' + b + '>ยืนยันเก็บเข้าคลัง?</button>'
+        : '<button class="btn sm" data-act="rotarch" data-id="' + r.id + '"' + b + '>เก็บเข้าคลัง</button>';
+    }
+    return '<div class="rcard' + (on ? ' on' : '') + '"><div class="row between"><div style="min-width:0"><div class="nm" style="font-size:17px">' + esc(r.name) + '</div></div>' +
+      (on ? '<span class="badge b-pod">กำลังใช้</span>' : '') + '</div>' +
+      '<div class="rbtns">' + btns + '<a class="rlink" target="_blank" rel="noopener" href="https://docs.google.com/spreadsheets/d/' + esc(r.sheetId) + '/edit">เปิดใน Sheets</a></div></div>';
+  }
+  function rotView() {
+    var R = S.rot, list = S.data.rotations || [];
+    var act = list.filter(function (r) { return !r.archived; });
+    var arch = list.filter(function (r) { return r.archived; });
+    var b = R.busy ? ' disabled' : '';
+    var h = '<div class="top"><div class="row"><button class="iconbtn" data-act="back" aria-label="กลับ"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>' +
+      '<div><h1 style="font-size:20px">Rotation</h1><div class="sub">1 rotation = 1 Google Sheet</div></div></div></div>' +
+      '<div class="rsec"><h2>ที่ใช้งานอยู่ (' + act.length + ')</h2>' + act.map(rotRow).join('');
+
+    h += '<h2>เพิ่ม rotation</h2>';
+    if (R.form === 'new') {
+      h += '<div class="rform"><label class="f"><span>ชื่อ rotation ใหม่</span><input data-r="nameV" type="text" placeholder="เช่น Maxillo พ.ย.–ม.ค." value="' + esc(R.nameV) + '"></label>' +
+        '<label class="f"><span>รายชื่อ ward (บรรทัดละ 1 ward เพิ่มทีหลังได้)</span><textarea data-r="wardsV" rows="6">' + esc(R.wardsV) + '</textarea></label>' +
+        '<label class="f"><span>รายชื่อ staff (บรรทัดละ 1 คน เพิ่มทีหลังได้)</span><textarea data-r="staffsV" rows="5">' + esc(R.staffsV) + '</textarea></label>' +
+        '<div class="sub">จะสร้าง Google Sheet ใหม่ใน Drive ของคุณ (แท็บ Main / Staffs / Wards) และสลับไปใช้ทันที ช่อง ward/staff เติมจาก rotation ปัจจุบันให้ แก้ได้ "Ward อื่นๆ" จะถูกเพิ่มท้ายรายการ ward ให้เอง</div>' +
+        '<div class="rbtns"><button class="btn sm solid" data-act="rotcreate"' + b + '>' + (R.busy ? 'กำลังสร้าง…' : 'สร้าง rotation') + '</button>' +
+        '<button class="btn sm" data-act="rotform" data-v=""' + b + '>ยกเลิก</button></div></div>';
+    } else if (R.form === 'add') {
+      h += '<div class="rform"><label class="f"><span>ลิงก์หรือ ID ของ Sheet</span><input data-r="urlV" type="text" autocomplete="off" placeholder="https://docs.google.com/spreadsheets/d/…" value="' + esc(R.urlV) + '"></label>' +
+        '<label class="f"><span>ชื่อที่แสดง (เว้นว่าง = ใช้ชื่อไฟล์)</span><input data-r="nameV" type="text" value="' + esc(R.nameV) + '"></label>' +
+        '<div class="sub">Sheet ต้องมีแท็บ Main และบัญชีของคุณต้องเข้าถึงได้</div>' +
+        '<div class="rbtns"><button class="btn sm solid" data-act="rotadd"' + b + '>' + (R.busy ? 'กำลังเพิ่ม…' : 'เพิ่ม') + '</button>' +
+        '<button class="btn sm" data-act="rotform" data-v=""' + b + '>ยกเลิก</button></div></div>';
+    } else {
+      h += '<div class="rbtns"><button class="btn sm solid" data-act="rotform" data-v="new">เริ่ม rotation ใหม่</button>' +
+        '<button class="btn sm" data-act="rotform" data-v="add">ผูก sheet ที่มีอยู่</button></div>';
+    }
+    if (R.err) h += '<div class="err">' + esc(R.err) + '</div>';
+
+    h += '<h2>ward ของ rotation นี้</h2><div class="rbtns"><button class="btn sm" data-act="wards">จัดการ ward (เพิ่ม / แก้ชื่อ / ลบ)</button></div>';
+    h += '<h2>ความเป็นส่วนตัว</h2><div class="sub" style="padding:0 4px">เก็บสำเนาข้อมูลคนไข้ล่าสุดไว้ในเครื่องนี้ เพื่อให้เปิดแอปเร็วขึ้น</div>' +
+      '<div class="rbtns"><button class="btn sm" data-act="cachetoggle">เก็บในเครื่อง: ' + (cacheOn() ? 'เปิด' : 'ปิด') + '</button>' +
+      '<button class="btn sm warn" data-act="cacheclear">ล้างข้อมูลในเครื่อง</button></div>';
+    h += '<h2><button class="btn sm" data-act="rotarchtoggle" style="margin-left:-4px">คลัง (' + arch.length + ') ' + (R.showArch ? '▲' : '▼') + '</button></h2>';
+    if (R.showArch) h += arch.length ? arch.map(rotRow).join('') : '<div class="sub" style="padding:0 4px">ยังไม่มี</div>';
+    return h + '</div><div style="height:32px"></div>';
+  }
+  // สลับ rotation เสร็จ -> โหลดข้อมูลของอันที่ใช้อยู่ใหม่ แล้วกลับหน้ารายการ
+  function afterSwitch(res) {
+    S.rotationId = res.activeId; S.data.rotations = res.rotations;
+    S.view = 'list'; S.rot = null; S.q = ''; S.limit = PAGE; S.status = 'in service';
+    return load();
+  }
+  function rotRun(fn, args, done) {
+    S.rot.busy = true; S.rot.err = ''; render();
+    call.apply(null, [fn].concat(args)).then(function (res) {
+      S.rot.busy = false; return done(res);
+    }).catch(function (err) {
+      if (S.rot) { S.rot.busy = false; S.rot.err = err.message; render(); }
+    });
+  }
+
+  /* ---------- จัดการ ward ---------- */
+  function openWards() {
+    S.wm = { loading: true, usage: {}, wards: [], unlisted: [], editing: null, editV: '', confirm: null, busy: false, err: '', addV: '' };
+    S.view = 'wards'; render(); window.scrollTo(0, 0);
+    call('getWardUsage', S.rotationId).then(wmApply).catch(function (e) { S.wm.loading = false; S.wm.err = e.message; render(); });
+  }
+  function wmApply(res) {
+    S.wm.wards = res.wards; S.wm.usage = res.usage; S.wm.unlisted = res.unlisted || [];
+    S.data.wards = res.wards; S.wm.loading = false; S.wm.busy = false; render();
+  }
+  function wmRun(fn, args, done) {
+    S.wm.busy = true; S.wm.err = ''; render();
+    call.apply(null, [fn].concat(args)).then(function (res) { S.wm.busy = false; return done(res); })
+      .catch(function (e) { if (S.wm) { S.wm.busy = false; S.wm.err = e.message; render(); } });
+  }
+  function wardsView() {
+    var W = S.wm, b = W.busy ? ' disabled' : '';
+    var h = '<div class="top"><div class="row"><button class="iconbtn" data-act="wmback" aria-label="กลับ"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>' +
+      '<div><h1 style="font-size:20px">จัดการ ward</h1><div class="sub">' + esc(rotName()) + '</div></div></div></div>' +
+      '<div class="rsec">';
+    if (W.loading) return h + '<div class="empty">กำลังโหลด…</div></div>';
+    h += '<div class="rform"><label class="f"><span>เพิ่ม ward ใหม่</span><input data-w="addV" type="text" autocomplete="off" placeholder="ชื่อ ward" value="' + esc(W.addV) + '"></label>' +
+      '<div class="rbtns"><button class="btn sm solid" data-act="wmadd"' + b + '>เพิ่ม</button></div></div>';
+    if (W.err) h += '<div class="err">' + esc(W.err) + '</div>';
+    h += '<h2>รายการ ward (' + W.wards.length + ')</h2>';
+    W.wards.forEach(function (w) {
+      var u = W.usage[w] || { inService: 0, total: 0 };
+      var locked = w === 'Ward อื่นๆ';
+      var en = esc(w);
+      if (W.editing === w) {
+        h += '<div class="wrow"><label class="f"><span>แก้ชื่อ ward</span><input data-w="editV" type="text" autocomplete="off" value="' + esc(W.editV) + '"></label>' +
+          (u.total ? '<div class="sub">คนไข้ ' + u.total + ' แถวที่ใช้ชื่อนี้จะถูกเปลี่ยนชื่อ ward ตามไปด้วย</div>' : '') +
+          '<div class="rbtns"><button class="btn sm solid" data-act="wmsave"' + b + '>บันทึก</button><button class="btn sm" data-act="wmcancel"' + b + '>ยกเลิก</button></div></div>';
+        return;
+      }
+      h += '<div class="wrow"><div class="row between"><div style="min-width:0"><div class="nm" style="font-size:17px">' + en + '</div>' +
+        '<div class="sub">in service ' + u.inService + ' · ทั้งหมด ' + u.total + ' ราย</div></div></div>';
+      if (locked) h += '<div class="sub">รายการสงวนไว้ แก้ชื่อหรือลบไม่ได้</div>';
+      else if (W.confirm === w) {
+        h += (u.inService > 0 ? '<div class="wwarn">ยังมีคนไข้ in service ' + u.inService + ' ราย ถ้าลบ คนไข้เหล่านี้จะยังมีชื่อ ward นี้อยู่ แต่ ward จะไม่อยู่ในรายการให้เลือก</div>'
+          : '<div class="wwarn">ลบ ward นี้ออกจากรายการ? (ข้อมูลคนไข้ไม่ถูกลบ)</div>') +
+          '<div class="rbtns"><button class="btn sm warn" data-act="wmdel" data-name="' + en + '"' + b + '>ยืนยันลบ</button><button class="btn sm" data-act="wmcancel"' + b + '>ยกเลิก</button></div>';
+      } else {
+        h += '<div class="rbtns"><button class="btn sm" data-act="wmedit" data-name="' + en + '"' + b + '>แก้ชื่อ</button>' +
+          '<button class="btn sm" data-act="wmdel" data-name="' + en + '"' + b + '>ลบ</button></div>';
+      }
+      h += '</div>';
+    });
+    if (W.unlisted.length) {
+      h += '<h2>ชื่อ ward ที่คนไข้ใช้อยู่ แต่ไม่อยู่ในรายการ</h2>';
+      W.unlisted.forEach(function (u) {
+        h += '<div class="wrow"><div><div class="nm" style="font-size:17px">' + esc(u.name) + '</div><div class="sub">in service ' + u.inService + ' · ทั้งหมด ' + u.total + ' ราย</div></div>' +
+          '<div class="rbtns"><button class="btn sm" data-act="wmadd" data-name="' + esc(u.name) + '"' + b + '>เพิ่มเข้ารายการ</button></div></div>';
+      });
+    }
+    return h + '</div><div style="height:32px"></div>';
+  }
+
+  function render() {
+    var focusId = document.activeElement && document.activeElement.id;
+    app.innerHTML = S.view === 'form' ? formView() : S.view === 'rot' ? rotView() : S.view === 'wards' ? wardsView() : listView();
+    Array.prototype.forEach.call(app.querySelectorAll('textarea.grow'), autosize);
+    if (focusId === 'q') {
+      var q = document.getElementById('q'); q.focus(); q.setSelectionRange(q.value.length, q.value.length);
+    }
+  }
+
+  var searchTimer;
+  app.addEventListener('input', function (ev) {
+    var rk = ev.target.getAttribute && ev.target.getAttribute('data-r');
+    if (rk && S.rot) { S.rot[rk] = ev.target.value; return; }
+    var wk = ev.target.getAttribute && ev.target.getAttribute('data-w');
+    if (wk && S.wm) { S.wm[wk] = ev.target.value; return; }
+    if (ev.target.classList && ev.target.classList.contains('grow')) autosize(ev.target);
+    if (ev.target.id === 'q') {
+      S.q = ev.target.value; S.limit = PAGE;
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(function () {
+        var list = app.querySelector('.list'), chips = app.querySelector('.chips');
+        if (!list || !chips) return;
+        var tmp = document.createElement('div');
+        tmp.innerHTML = listView();
+        list.innerHTML = tmp.querySelector('.list').innerHTML;
+        chips.innerHTML = tmp.querySelector('.chips').innerHTML;
+      }, 120);
+    }
+  });
+  app.addEventListener('change', function (ev) {
+    var n = ev.target;
+    if (n.getAttribute && n.getAttribute('data-f') === 'ward') {
+      readForm(); // เก็บค่าที่พิมพ์ค้างไว้ก่อน ไม่งั้น render ใหม่แล้วหาย
+      if (n.value === '__new__') {
+        S.addingWard = true; render();
+        var nw = document.getElementById('newward'); if (nw) nw.focus();
+      } else if (S.addingWard) { S.addingWard = false; render(); }
+    }
+    if (n.getAttribute && n.getAttribute('data-f') === 'staff') {
+      readForm();
+      if (n.value === '__new__') {
+        S.addingStaff = true; render();
+        var ns = document.getElementById('newstaff'); if (ns) ns.focus();
+      } else if (S.addingStaff) { S.addingStaff = false; render(); }
+    }
+  });
+  app.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-act]');
+    if (!b) return;
+    var act = b.getAttribute('data-act'), v = b.getAttribute('data-v');
+    var id = b.getAttribute('data-id');
+    var nm = b.getAttribute('data-name');
+    if (act === 'rot') { openRot(); }
+    else if (act === 'cachetoggle') {
+      try { localStorage.setItem(CACHE_ON_KEY, cacheOn() ? '0' : '1'); } catch (e) { /* ignore */ }
+      if (cacheOn()) cacheSave(); else cacheClear();
+      render(); toast(cacheOn() ? 'เปิดการเก็บในเครื่อง' : 'ปิดและล้างข้อมูลในเครื่องแล้ว');
+    }
+    else if (act === 'cacheclear') { cacheClear(); toast('ล้างข้อมูลในเครื่องแล้ว'); }
+    else if (act === 'wards') { openWards(); }
+    else if (act === 'wmback') { S.wm = null; openRot(); }
+    else if (act === 'wmcancel') { S.wm.editing = null; S.wm.confirm = null; S.wm.err = ''; render(); }
+    else if (act === 'wmedit') { S.wm.editing = nm; S.wm.editV = nm; S.wm.confirm = null; S.wm.err = ''; render(); }
+    else if (act === 'wmadd') {
+      var an = (nm || S.wm.addV || '').trim();
+      if (!an) { S.wm.err = 'ใส่ชื่อ ward ก่อน'; render(); return; }
+      wmRun('addWard', [an, S.rotationId], function () {
+        S.wm.addV = '';
+        return call('getWardUsage', S.rotationId).then(function (r) { wmApply(r); toast('เพิ่ม ward แล้ว'); });
+      });
+    }
+    else if (act === 'wmsave') {
+      var old = S.wm.editing, nv = (S.wm.editV || '').trim();
+      if (!nv) { S.wm.err = 'ใส่ชื่อ ward ก่อน'; render(); return; }
+      if (nv === old) { S.wm.editing = null; render(); return; }
+      wmRun('renameWard', [old, nv, S.rotationId], function (res) {
+        S.wm.editing = null; wmApply(res);
+        toast('เปลี่ยนชื่อแล้ว' + (res.updated ? ' (อัปเดตคนไข้ ' + res.updated + ' แถว)' : ''));
+        return load(true);
+      });
+    }
+    else if (act === 'wmdel') {
+      if (S.wm.confirm !== nm) { S.wm.confirm = nm; render(); return; }
+      var known = S.wm.usage[nm] || { inService: 0 };
+      wmRun('deleteWard', [nm, known.inService > 0, S.rotationId], function (res) {
+        if (!res.deleted) {
+          S.wm.usage[nm] = { inService: res.inService, total: res.total }; S.wm.confirm = nm; render(); return;
+        }
+        S.wm.confirm = null; wmApply(res); toast('ลบ ward แล้ว'); return load(true);
+      });
+    }
+    else if (act === 'rotform') {
+      S.rot.form = v || null; S.rot.err = '';
+      if (v === 'new') { S.rot.wardsV = S.data.wards.filter(function (w) { return w !== 'Ward อื่นๆ'; }).join('\n'); S.rot.staffsV = S.data.staffs.join('\n'); S.rot.nameV = ''; }
+      if (v === 'add') { S.rot.urlV = ''; S.rot.nameV = ''; }
+      render();
+    }
+    else if (act === 'rotarchtoggle') { S.rot.showArch = !S.rot.showArch; render(); }
+    else if (act === 'rotuse') { rotRun('switchRotation', [id], afterSwitch); }
+    else if (act === 'rotarch') {
+      if (S.rot.confirm !== id) { S.rot.confirm = id; render(); return; }
+      S.rot.confirm = null;
+      rotRun('archiveRotation', [id, true], function (res) {
+        if (res.activeId !== S.rotationId) return afterSwitch(res);
+        S.data.rotations = res.rotations; render(); toast('เก็บเข้าคลังแล้ว');
+      });
+    }
+    else if (act === 'rotunarch') {
+      rotRun('archiveRotation', [id, false], function (res) { S.data.rotations = res.rotations; render(); toast('เอากลับมาใช้แล้ว'); });
+    }
+    else if (act === 'rotcreate') {
+      if (!S.rot.nameV.trim()) { S.rot.err = 'ตั้งชื่อ rotation ก่อน'; render(); return; }
+      rotRun('createRotation', [{ name: S.rot.nameV, wards: S.rot.wardsV, staffs: S.rot.staffsV }],
+        function (res) { return afterSwitch(res).then(function () { toast('สร้าง rotation แล้ว'); }); });
+    }
+    else if (act === 'rotadd') {
+      if (!S.rot.urlV.trim()) { S.rot.err = 'ใส่ลิงก์หรือ ID ของ sheet'; render(); return; }
+      rotRun('addRotation', [{ name: S.rot.nameV, url: S.rot.urlV }],
+        function (res) { return afterSwitch(res).then(function () { toast('เพิ่ม rotation แล้ว'); }); });
+    }
+    else if (act === 'status') { S.status = v; S.limit = PAGE; render(); }
+    else if (act === 'more') { S.limit += PAGE; render(); }
+    else if (act === 'reload') { load(); }
+    else if (act === 'new') { openForm(null); }
+    else if (act === 'open') { openForm(+b.getAttribute('data-row')); }
+    else if (act === 'back') { back(); }
+    else if (act === 'fset') { readForm(); S.edit.v[b.getAttribute('data-k')] = v; render(); }
+    else if (act === 'save') { save(); }
+    else if (act === 'addstaff') {
+      var sname = (document.getElementById('newstaff').value || '').trim();
+      if (!sname) return;
+      readForm();
+      call('addStaff', sname, S.rotationId).then(function (staffs) {
+        S.data.staffs = staffs; S.edit.v.staff = sname; S.addingStaff = false; render(); toast('เพิ่ม staff แล้ว');
+      }).catch(function (err) { S.error = err.message; render(); });
+    }
+    else if (act === 'addward') {
+      var name = (document.getElementById('newward').value || '').trim();
+      if (!name) return;
+      readForm();
+      call('addWard', name, S.rotationId).then(function (wards) {
+        S.data.wards = wards; S.edit.v.ward = name; S.addingWard = false; render(); toast('เพิ่ม ward แล้ว');
+      }).catch(function (err) { S.error = err.message; render(); });
+    }
+  });
+
+  var cached = cacheLoad();
+  if (cached) {
+    S.data = cached.data; S.rotationId = cached.data.rotationId; S.loading = false;
+    S.fromCache = true; S.cacheNote = hhmm(cached.t);
+    render(); load(true);
+  } else load();
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('sw.js').catch(function () { /* ไม่รองรับ: ใช้งานตามปกติ */ });
+}
+</script>
+</body>
+</html>
