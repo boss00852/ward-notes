@@ -92,6 +92,12 @@
     if (existing.some(function (w) { return sameName(w, name) && !sameName(w, selfName); })) throw new Error('มี ward ชื่อนี้อยู่แล้ว');
     return name;
   }
+  function checkStaffName(name, existing, selfName) {
+    name = String(name == null ? '' : name).replace(/\s+/g, ' ').trim();
+    if (!name) throw new Error('ใส่ชื่อ staff ก่อน');
+    if (existing.some(function (w) { return sameName(w, name) && !sameName(w, selfName); })) throw new Error('มี staff ชื่อนี้อยู่แล้ว');
+    return name;
+  }
   // Staffs ไม่มีหัว แต่ถ้าแถวแรกดูเป็นหัว (ขึ้นต้น staff / รายชื่อ) ให้ข้าม
   function dropStaffHeader(list) {
     return list.length && /^(staffs?|รายชื่อ)/i.test(list[0]) ? list.slice(1) : list;
@@ -218,7 +224,7 @@
   return {
     Core: Core, HEADER_KEYS: HEADER_KEYS, CONTENT_KEYS: CONTENT_KEYS, OTHER_WARD: OTHER_WARD,
     normHeader: normHeader, columnKeys: columnKeys, sameName: sameName, normalizeNames: normalizeNames,
-    normalizeWards: normalizeWards, checkWardName: checkWardName, dropStaffHeader: dropStaffHeader,
+    normalizeWards: normalizeWards, checkWardName: checkWardName, checkStaffName: checkStaffName, dropStaffHeader: dropStaffHeader,
     wardUsage: wardUsage, matchIndexes: matchIndexes, extractSheetId: extractSheetId,
     setArchived: setArchived, rotationSummary: rotationSummary, a1: a1, colRuns: colRuns,
     MAIN_KEYS: MAIN_KEYS, legacyRows: legacyRows, migratePlan: migratePlan

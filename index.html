@@ -481,7 +481,8 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
         (R.result.url ? '<a class="rlink" target="_blank" rel="noopener" href="' + esc(R.result.url) + '">เปิดไฟล์ใหม่ใน Sheets</a>' : '') + '</div>';
     }
 
-    h += '<h2>ward ของ rotation นี้</h2><div class="rbtns"><button class="btn sm" data-act="wards">จัดการ ward (เพิ่ม / แก้ชื่อ / ลบ)</button></div>';
+    h += '<h2>ward และ staff ของ rotation นี้</h2><div class="rbtns"><button class="btn sm" data-act="wards">จัดการ ward (เพิ่ม / แก้ชื่อ / ลบ)</button>' +
+      '<button class="btn sm" data-act="staffs">จัดการ staff (เพิ่ม / แก้ชื่อ / ลบ)</button></div>';
     h += '<h2>ความเป็นส่วนตัว</h2><div class="sub" style="padding:0 4px">เก็บสำเนาข้อมูลคนไข้ล่าสุดไว้ในเครื่องนี้ เพื่อให้เปิดแอปเร็วขึ้น</div>' +
       '<div class="rbtns"><button class="btn sm" data-act="cachetoggle">เก็บในเครื่อง: ' + (cacheOn() ? 'เปิด' : 'ปิด') + '</button>' +
       '<button class="btn sm warn" data-act="cacheclear">ล้างข้อมูลในเครื่อง</button></div>';
@@ -504,15 +505,23 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
     });
   }
 
-  /* ---------- จัดการ ward ---------- */
-  function openWards() {
-    S.wm = { loading: true, usage: {}, wards: [], unlisted: [], editing: null, editV: '', confirm: null, busy: false, err: '', addV: '' };
+  /* ---------- จัดการ ward / staff (หน้าเดียวกัน ต่างกันที่ WMC) ---------- */
+  var WMC = {
+    ward: { title: 'จัดการ ward', noun: 'ward', key: 'wards', usage: 'getWardUsage', add: 'addWard', rename: 'renameWard', del: 'deleteWard', locked: 'Ward อื่นๆ',
+      tail: 'ward จะไม่อยู่ในรายการให้เลือก', follow: 'ชื่อ ward' },
+    staff: { title: 'จัดการ staff', noun: 'staff', key: 'staffs', usage: 'getStaffUsage', add: 'addStaff', rename: 'renameStaff', del: 'deleteStaff', locked: '',
+      tail: 'ชื่อนี้จะไม่อยู่ในรายการให้เลือก', follow: 'ชื่อ staff' }
+  };
+  function wmc() { return WMC[S.wm.kind]; }
+  function openWards(kind) {
+    S.wm = { kind: kind || 'ward', loading: true, usage: {}, list: [], unlisted: [], editing: null, editV: '', confirm: null, busy: false, err: '', addV: '' };
     S.view = 'wards'; render(); window.scrollTo(0, 0);
-    call('getWardUsage', S.rotationId).then(wmApply).catch(function (e) { S.wm.loading = false; S.wm.err = e.message; render(); });
+    call(wmc().usage, S.rotationId).then(wmApply).catch(function (e) { S.wm.loading = false; S.wm.err = e.message; render(); });
   }
   function wmApply(res) {
-    S.wm.wards = res.wards; S.wm.usage = res.usage; S.wm.unlisted = res.unlisted || [];
-    S.data.wards = res.wards; S.wm.loading = false; S.wm.busy = false; render();
+    var k = wmc().key;
+    S.wm.list = res[k]; S.wm.usage = res.usage; S.wm.unlisted = res.unlisted || [];
+    S.data[k] = res[k]; S.wm.loading = false; S.wm.busy = false; render();
   }
   function wmRun(fn, args, done) {
     S.wm.busy = true; S.wm.err = ''; render();
@@ -520,22 +529,22 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
       .catch(function (e) { if (S.wm) { S.wm.busy = false; S.wm.err = e.message; render(); } });
   }
   function wardsView() {
-    var W = S.wm, b = W.busy ? ' disabled' : '';
+    var W = S.wm, c = wmc(), b = W.busy ? ' disabled' : '';
     var h = '<div class="top"><div class="row"><button class="iconbtn" data-act="wmback" aria-label="กลับ"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>' +
-      '<div><h1 style="font-size:20px">จัดการ ward</h1><div class="sub">' + esc(rotName()) + '</div></div></div></div>' +
+      '<div><h1 style="font-size:20px">' + c.title + '</h1><div class="sub">' + esc(rotName()) + '</div></div></div></div>' +
       '<div class="rsec">';
     if (W.loading) return h + '<div class="empty">กำลังโหลด…</div></div>';
-    h += '<div class="rform"><label class="f"><span>เพิ่ม ward ใหม่</span><input data-w="addV" type="text" autocomplete="off" placeholder="ชื่อ ward" value="' + esc(W.addV) + '"></label>' +
+    h += '<div class="rform"><label class="f"><span>เพิ่ม ' + c.noun + ' ใหม่</span><input data-w="addV" type="text" autocomplete="off" placeholder="' + c.follow + '" value="' + esc(W.addV) + '"></label>' +
       '<div class="rbtns"><button class="btn sm solid" data-act="wmadd"' + b + '>เพิ่ม</button></div></div>';
     if (W.err) h += '<div class="err">' + esc(W.err) + '</div>';
-    h += '<h2>รายการ ward (' + W.wards.length + ')</h2>';
-    W.wards.forEach(function (w) {
+    h += '<h2>รายการ ' + c.noun + ' (' + W.list.length + ')</h2>';
+    W.list.forEach(function (w) {
       var u = W.usage[w] || { inService: 0, total: 0 };
-      var locked = w === 'Ward อื่นๆ';
+      var locked = c.locked && w === c.locked;
       var en = esc(w);
       if (W.editing === w) {
-        h += '<div class="wrow"><label class="f"><span>แก้ชื่อ ward</span><input data-w="editV" type="text" autocomplete="off" value="' + esc(W.editV) + '"></label>' +
-          (u.total ? '<div class="sub">คนไข้ ' + u.total + ' แถวที่ใช้ชื่อนี้จะถูกเปลี่ยนชื่อ ward ตามไปด้วย</div>' : '') +
+        h += '<div class="wrow"><label class="f"><span>แก้ชื่อ ' + c.noun + '</span><input data-w="editV" type="text" autocomplete="off" value="' + esc(W.editV) + '"></label>' +
+          (u.total ? '<div class="sub">คนไข้ ' + u.total + ' แถวที่ใช้ชื่อนี้จะถูกเปลี่ยน' + c.follow + 'ตามไปด้วย</div>' : '') +
           '<div class="rbtns"><button class="btn sm solid" data-act="wmsave"' + b + '>บันทึก</button><button class="btn sm" data-act="wmcancel"' + b + '>ยกเลิก</button></div></div>';
         return;
       }
@@ -543,8 +552,8 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
         '<div class="sub">in service ' + u.inService + ' · ทั้งหมด ' + u.total + ' ราย</div></div></div>';
       if (locked) h += '<div class="sub">รายการสงวนไว้ แก้ชื่อหรือลบไม่ได้</div>';
       else if (W.confirm === w) {
-        h += (u.inService > 0 ? '<div class="wwarn">ยังมีคนไข้ in service ' + u.inService + ' ราย ถ้าลบ คนไข้เหล่านี้จะยังมีชื่อ ward นี้อยู่ แต่ ward จะไม่อยู่ในรายการให้เลือก</div>'
-          : '<div class="wwarn">ลบ ward นี้ออกจากรายการ? (ข้อมูลคนไข้ไม่ถูกลบ)</div>') +
+        h += (u.inService > 0 ? '<div class="wwarn">ยังมีคนไข้ in service ' + u.inService + ' ราย ถ้าลบ คนไข้เหล่านี้จะยังมีชื่อ ' + c.noun + ' นี้อยู่ แต่' + c.tail + '</div>'
+          : '<div class="wwarn">ลบ ' + c.noun + ' นี้ออกจากรายการ? (ข้อมูลคนไข้ไม่ถูกลบ)</div>') +
           '<div class="rbtns"><button class="btn sm warn" data-act="wmdel" data-name="' + en + '"' + b + '>ยืนยันลบ</button><button class="btn sm" data-act="wmcancel"' + b + '>ยกเลิก</button></div>';
       } else {
         h += '<div class="rbtns"><button class="btn sm" data-act="wmedit" data-name="' + en + '"' + b + '>แก้ชื่อ</button>' +
@@ -553,7 +562,7 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
       h += '</div>';
     });
     if (W.unlisted.length) {
-      h += '<h2>ชื่อ ward ที่คนไข้ใช้อยู่ แต่ไม่อยู่ในรายการ</h2>';
+      h += '<h2>ชื่อ ' + c.noun + ' ที่คนไข้ใช้อยู่ แต่ไม่อยู่ในรายการ</h2>';
       W.unlisted.forEach(function (u) {
         h += '<div class="wrow"><div><div class="nm" style="font-size:17px">' + esc(u.name) + '</div><div class="sub">in service ' + u.inService + ' · ทั้งหมด ' + u.total + ' ราย</div></div>' +
           '<div class="rbtns"><button class="btn sm" data-act="wmadd" data-name="' + esc(u.name) + '"' + b + '>เพิ่มเข้ารายการ</button></div></div>';
@@ -621,23 +630,24 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
       render(); toast(cacheOn() ? 'เปิดการเก็บในเครื่อง' : 'ปิดและล้างข้อมูลในเครื่องแล้ว');
     }
     else if (act === 'cacheclear') { cacheClear(); toast('ล้างข้อมูลในเครื่องแล้ว'); }
-    else if (act === 'wards') { openWards(); }
+    else if (act === 'wards') { openWards('ward'); }
+    else if (act === 'staffs') { openWards('staff'); }
     else if (act === 'wmback') { S.wm = null; openRot(); }
     else if (act === 'wmcancel') { S.wm.editing = null; S.wm.confirm = null; S.wm.err = ''; render(); }
     else if (act === 'wmedit') { S.wm.editing = nm; S.wm.editV = nm; S.wm.confirm = null; S.wm.err = ''; render(); }
     else if (act === 'wmadd') {
-      var an = (nm || S.wm.addV || '').trim();
-      if (!an) { S.wm.err = 'ใส่ชื่อ ward ก่อน'; render(); return; }
-      wmRun('addWard', [an, S.rotationId], function () {
+      var c1 = wmc(), an = (nm || S.wm.addV || '').trim();
+      if (!an) { S.wm.err = 'ใส่ชื่อ ' + c1.noun + ' ก่อน'; render(); return; }
+      wmRun(c1.add, [an, S.rotationId], function () {
         S.wm.addV = '';
-        return call('getWardUsage', S.rotationId).then(function (r) { wmApply(r); toast('เพิ่ม ward แล้ว'); });
+        return call(c1.usage, S.rotationId).then(function (r) { wmApply(r); toast('เพิ่ม ' + c1.noun + ' แล้ว'); });
       });
     }
     else if (act === 'wmsave') {
-      var old = S.wm.editing, nv = (S.wm.editV || '').trim();
-      if (!nv) { S.wm.err = 'ใส่ชื่อ ward ก่อน'; render(); return; }
+      var c2 = wmc(), old = S.wm.editing, nv = (S.wm.editV || '').trim();
+      if (!nv) { S.wm.err = 'ใส่ชื่อ ' + c2.noun + ' ก่อน'; render(); return; }
       if (nv === old) { S.wm.editing = null; render(); return; }
-      wmRun('renameWard', [old, nv, S.rotationId], function (res) {
+      wmRun(c2.rename, [old, nv, S.rotationId], function (res) {
         S.wm.editing = null; wmApply(res);
         toast('เปลี่ยนชื่อแล้ว' + (res.updated ? ' (อัปเดตคนไข้ ' + res.updated + ' แถว)' : ''));
         return load(true);
@@ -645,12 +655,12 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
     }
     else if (act === 'wmdel') {
       if (S.wm.confirm !== nm) { S.wm.confirm = nm; render(); return; }
-      var known = S.wm.usage[nm] || { inService: 0 };
-      wmRun('deleteWard', [nm, known.inService > 0, S.rotationId], function (res) {
+      var c3 = wmc(), known = S.wm.usage[nm] || { inService: 0 };
+      wmRun(c3.del, [nm, known.inService > 0, S.rotationId], function (res) {
         if (!res.deleted) {
           S.wm.usage[nm] = { inService: res.inService, total: res.total }; S.wm.confirm = nm; render(); return;
         }
-        S.wm.confirm = null; wmApply(res); toast('ลบ ward แล้ว'); return load(true);
+        S.wm.confirm = null; wmApply(res); toast('ลบ ' + c3.noun + ' แล้ว'); return load(true);
       });
     }
     else if (act === 'rotform') {

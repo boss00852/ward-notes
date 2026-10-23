@@ -232,6 +232,55 @@
     return { wards: cols.listed, usage: usage, unlisted: unlisted };
   }
 
+  // ---- staff: อ่านคอลัมน์ staff/status ของ Main + รายชื่อใน Staffs (ไม่มีหัว) ----
+  function staffColumns(sid) {
+    return batchGet(sid, [MAIN + '!A1:Z', STAFFS + '!A:A']).then(function (vr) {
+      var keys = C.columnKeys((vr[0][0]) || []);
+      var sc = keys.indexOf('staff'), st = keys.indexOf('status');
+      var rows = vr[0].slice(1).map(function (r) { return { ward: sc < 0 ? '' : cell(r[sc]), status: st < 0 ? '' : cell(r[st]) }; });
+      var raw = firstCol(vr[1]);
+      return { sc: sc, rows: rows, raw: raw, listed: C.dropStaffHeader(raw.filter(Boolean)) };
+    });
+  }
+  function staffResult(cols) {
+    var u = usageOf(cols); // usageOf ใช้ rows[].ward เป็นชื่อที่นับ (ที่นี่คือชื่อ staff)
+    return { staffs: u.wards, usage: u.usage, unlisted: u.unlisted };
+  }
+  function getStaffUsage(rotationId) {
+    return staffColumns(entryFor(rotationId).sheetId).then(staffResult);
+  }
+  function renameStaff(oldName, newName, rotationId) {
+    var sid = entryFor(rotationId).sheetId;
+    return staffColumns(sid).then(function (cols) {
+      var name = C.checkStaffName(newName, cols.listed, oldName);
+      var at = C.matchIndexes(cols.raw, oldName);
+      if (!at.length) throw new Error('ไม่พบ staff "' + oldName + '" แล้ว กรุณารีเฟรช');
+      var hits = cols.sc < 0 ? [] : C.matchIndexes(cols.rows.map(function (r) { return r.ward; }), oldName);
+      var data = hits.map(function (i) { return { range: MAIN + '!' + C.a1(cols.sc + 1, i + 2), values: [[name]] }; });
+      data.push({ range: STAFFS + '!A' + (at[0] + 1), values: [[name]] });
+      return valuesBatchUpdate(sid, data).then(function () {
+        cols.rows.forEach(function (r, i) { if (hits.indexOf(i) >= 0) r.ward = name; });
+        cols.listed = cols.listed.map(function (w) { return C.sameName(w, oldName) ? name : w; });
+        var res = staffResult(cols); res.updated = hits.length; return res;
+      });
+    });
+  }
+  function deleteStaff(name, force, rotationId) {
+    var sid = entryFor(rotationId).sheetId;
+    return staffColumns(sid).then(function (cols) {
+      var at = C.matchIndexes(cols.raw, name);
+      if (!at.length) throw new Error('ไม่พบ staff "' + name + '" แล้ว กรุณารีเฟรช');
+      var u = staffResult(cols).usage[cols.raw[at[0]]] || { inService: 0, total: 0 };
+      if (u.inService > 0 && !force) return { deleted: false, inService: u.inService, total: u.total };
+      return tabId(sid, STAFFS).then(function (id) {
+        return structBatch(sid, [{ deleteDimension: { range: { sheetId: id, dimension: 'ROWS', startIndex: at[0], endIndex: at[0] + 1 } } }]);
+      }).then(function () {
+        cols.listed = cols.listed.filter(function (w) { return !C.sameName(w, name); });
+        var res = staffResult(cols); res.deleted = true; return res;
+      });
+    });
+  }
+
   function getWardUsage(rotationId) {
     return wardColumns(entryFor(rotationId).sheetId).then(usageOf);
   }
@@ -395,6 +444,7 @@
   var fns = {
     loadAll: loadAll, savePatient: savePatient, addWard: addWard, addStaff: addStaff,
     getWardUsage: getWardUsage, renameWard: renameWard, deleteWard: deleteWard,
+    getStaffUsage: getStaffUsage, renameStaff: renameStaff, deleteStaff: deleteStaff,
     getRotations: getRotations, switchRotation: switchRotation, archiveRotation: archiveRotation,
     createRotation: createRotation, addRotation: addRotation, importLegacy: importLegacy
   };
