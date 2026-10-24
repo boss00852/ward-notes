@@ -122,6 +122,7 @@
     return batchGet(e.sheetId, [MAIN + '!A1:Z', WARDS + '!A:A', STAFFS + '!A:A']).then(function (vr) {
       var vals = vr[0] || [];
       var keys = C.columnKeys(vals[0] || []);
+      out.missingColumns = vals.length ? C.MAIN_KEYS.filter(function (k) { return keys.indexOf(k) < 0; }) : [];
       var width = 0;
       keys.forEach(function (k, i) { if (k) width = i + 1; });
       for (var r = 1; r < vals.length && width; r++) {
@@ -158,6 +159,12 @@
     return batchGet(sid, ranges).then(function (vr) {
       var keys = C.columnKeys(vr[0][0] || []);
       if (!keys.some(Boolean)) throw new Error('ไม่พบหัวคอลัมน์ในแท็บ ' + MAIN);
+      // ช่องที่มีค่าแต่ไม่มีคอลัมน์รองรับ = ห้ามบันทึกแบบเงียบๆ (เดิมข้ามไปแล้วขึ้นว่า "บันทึกแล้ว" ทั้งที่ไม่ได้เขียน)
+      var missing = Object.keys(fields).filter(function (k) { return cell(fields[k]) !== '' && keys.indexOf(k) < 0; });
+      if (missing.length) {
+        throw new Error('ไม่ได้บันทึก: ไม่พบคอลัมน์ ' + missing.map(function (k) { return '"' + (C.FIELD_LABELS[k] || k) + '"'; }).join(', ') +
+          ' ในหัวตาราง Main (ตรวจชื่อหัวคอลัมน์ใน Sheets)');
+      }
       if (row !== null) {
         var cur = (vr[1] && vr[1][0]) || [];
         var guards = { hn: payload.expectHn, name: payload.expectName };

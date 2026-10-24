@@ -89,11 +89,32 @@
   function normHeader(h) {
     return String(h == null ? '' : h).replace(/\s+/g, ' ').trim().toLowerCase().replace(/\s*\/\s*/g, '/');
   }
+  // ชื่อช่องภาษาไทย ใช้ในข้อความแจ้งเตือน
+  var FIELD_LABELS = { status: 'สถานะ', note: 'หมายเหตุ', consultDate: 'วันรับเคส', opDate: 'วันที่ผ่า', ward: 'ward ที่อยู่', hn: 'HN',
+    name: 'ชื่อ', sex: 'เพศ', age: 'อายุ', dx: 'Diagnosis', op: 'Operation/Management', anes: 'Anes', staff: 'staff' };
+
+  // หัวคอลัมน์ -> key ของช่อง: ตรงตัวก่อน แล้วค่อยดูคำนำหน้า/คำสำคัญ (ชื่อหัวที่ผู้ใช้แก้เล็กน้อย เช่น
+  // "หมายเหตุ/บันทึกเพิ่มเติม", "วันรับ / วัน consult" ยังจับคู่ได้) ช่อง hn/ชื่อ/เพศ/อายุ/สถานะ ต้องตรงตัวเท่านั้น
+  function headerKey(h) {
+    var n = normHeader(h);
+    if (!n) return null;
+    if (HEADER_KEYS[n]) return HEADER_KEYS[n];
+    if (n.indexOf('หมายเหตุ') === 0 || n.indexOf('note') === 0 || n.indexOf('remark') === 0) return 'note';
+    if (n.indexOf('วันที่ผ่า') >= 0 || n.indexOf('วันผ่า') >= 0) return 'opDate';
+    if (n.indexOf('วันรับ') >= 0 || n.indexOf('วันที่รับ') >= 0) return 'consultDate';
+    if (n.indexOf('ward') === 0) return 'ward';
+    if (n.indexOf('diagnosis') === 0 || n === 'dx') return 'dx';
+    if (n.indexOf('operation') === 0 || n === 'op') return 'op';
+    if (n.indexOf('anes') === 0) return 'anes';
+    if (n.indexOf('staff') === 0) return 'staff';
+    return null;
+  }
+
   // key ต่อคอลัมน์ (index ตรงกับคอลัมน์) หัวซ้ำใช้อันแรก
   function columnKeys(headerRow) {
     var seen = {};
     return headerRow.map(function (h) {
-      var key = HEADER_KEYS[normHeader(h)] || null;
+      var key = headerKey(h);
       if (!key || seen[key]) return null;
       seen[key] = true;
       return key;
@@ -193,7 +214,7 @@
     values = values || [];
     var seen = {};
     var keys = (values[0] || []).map(function (h, i) {
-      var n = normHeader(h), k = HEADER_KEYS[n] || null;
+      var n = normHeader(h), k = headerKey(h);
       if (!n && isConsult && i === 1) k = 'note';
       if (!k || seen[k]) return null;
       seen[k] = true;
@@ -259,7 +280,7 @@
   }
 
   return {
-    Core: Core, HEADER_KEYS: HEADER_KEYS, CONTENT_KEYS: CONTENT_KEYS, OTHER_WARD: OTHER_WARD,
+    Core: Core, HEADER_KEYS: HEADER_KEYS, FIELD_LABELS: FIELD_LABELS, headerKey: headerKey, CONTENT_KEYS: CONTENT_KEYS, OTHER_WARD: OTHER_WARD,
     normHeader: normHeader, columnKeys: columnKeys, sameName: sameName, normalizeNames: normalizeNames,
     normalizeWards: normalizeWards, checkWardName: checkWardName, checkStaffName: checkStaffName, dropStaffHeader: dropStaffHeader,
     wardUsage: wardUsage, matchIndexes: matchIndexes, extractSheetId: extractSheetId,

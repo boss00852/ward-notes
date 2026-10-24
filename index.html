@@ -115,11 +115,11 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
 <div id="app"></div>
 <div id="toast" class="toast hidden"></div>
 
-<script src="core.js?v=r18"></script>
-<script src="config.js?v=r18"></script>
-<script src="auth.js?v=r18"></script>
-<script src="api.js?v=r18"></script>
-<script>if (/[?&]mock=1/.test(location.search)) document.write('<script src="mock.js?v=r18"><\/script>');</script>
+<script src="core.js?v=r19"></script>
+<script src="config.js?v=r19"></script>
+<script src="auth.js?v=r19"></script>
+<script src="api.js?v=r19"></script>
+<script>if (/[?&]mock=1/.test(location.search)) document.write('<script src="mock.js?v=r19"><\/script>');</script>
 <script>
 (function () {
   var m = /[?&]mock=1/.test(location.search) ? WNMock.create() : null;
@@ -220,6 +220,13 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
     } catch (e) { /* ignore */ }
     return null;
   }
+  function missingBanner() {
+    var m = S.data.missingColumns;
+    if (!m || !m.length) return '';
+    var names = m.map(function (k) { return WN.FIELD_LABELS[k] || k; }).join(', ');
+    return '<div class="rform" style="border-color:var(--danger)"><div class="nm" style="font-size:16px;color:var(--danger)">ไม่พบคอลัมน์ในหัวตาราง Main</div>' +
+      '<div class="sub">' + esc(names) + ' — ช่องเหล่านี้จะไม่แสดงและบันทึกไม่ได้ ตรวจชื่อหัวคอลัมน์ใน Google Sheets (เช่น "หมายเหตุ", "วันรับ consult", "วันที่ผ่า")</div></div>';
+  }
   function draftBanner() {
     var d = S.draft;
     if (!d || (S.rotationId && d.rotationId !== S.rotationId)) return '';
@@ -313,7 +320,7 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
       chip('in service', 'in service ' + count('in service')) +
       chip('off service', 'off service ' + count('off service')) +
       chip('all', 'ทั้งหมด ' + count('all')) + '</div></div>' +
-      '<div class="list">' + draftBanner() + body + '</div>' +
+      '<div class="list">' + missingBanner() + draftBanner() + body + '</div>' +
       '<button class="fab" data-act="new" aria-label="เพิ่มคนไข้"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>';
   }
   function chip(v, label) {
