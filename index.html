@@ -115,11 +115,11 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
 <div id="app"></div>
 <div id="toast" class="toast hidden"></div>
 
-<script src="core.js?v=r16"></script>
-<script src="config.js?v=r16"></script>
-<script src="auth.js?v=r16"></script>
-<script src="api.js?v=r16"></script>
-<script>if (/[?&]mock=1/.test(location.search)) document.write('<script src="mock.js?v=r16"><\/script>');</script>
+<script src="core.js?v=r17"></script>
+<script src="config.js?v=r17"></script>
+<script src="auth.js?v=r17"></script>
+<script src="api.js?v=r17"></script>
+<script>if (/[?&]mock=1/.test(location.search)) document.write('<script src="mock.js?v=r17"><\/script>');</script>
 <script>
 (function () {
   var m = /[?&]mock=1/.test(location.search) ? WNMock.create() : null;
@@ -302,14 +302,18 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
     if (row) p = S.data.patients.filter(function (x) { return x.row === row; })[0];
     S.scroll = window.scrollY;
     if (p) {
-      S.edit = { row: row, orig: p, v: {} };
-      FIELDS.forEach(function (k) { S.edit.v[k] = DATE_FIELDS[k] ? toISO(p[k]) : (p[k] || ''); });
+      S.edit = { row: row, orig: p, v: {}, shown: {} };
+      FIELDS.forEach(function (k) {
+        var raw = p[k] || '';
+        if (DATE_FIELDS[k]) { raw = raw === '-' ? '' : raw; S.edit.shown[k] = raw; }
+        S.edit.v[k] = raw;
+      });
     } else {
-      S.edit = { row: null, orig: {}, v: {} };
+      S.edit = { row: null, orig: {}, v: {}, shown: { consultDate: '', opDate: '' } };
       FIELDS.forEach(function (k) { S.edit.v[k] = ''; });
       S.edit.v.status = 'in service';
       S.edit.v.sex = 'ชาย';
-      S.edit.v.consultDate = todayISO();
+      S.edit.v.consultDate = Core.todayDMY();
     }
     S.view = 'form'; S.error = ''; S.addingWard = false; S.addingStaff = false;
     render(); window.scrollTo(0, 0);
@@ -326,14 +330,15 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
     }).join('') + '<option value="__new__">+ เพิ่ม staff ใหม่</option></select></label>';
   }
   // ช่องวันที่: ปุ่ม "ล้างวันที่" ตั้งค่าเป็นว่าง (ตัวเลือกวันที่บนมือถือบางรุ่นไม่มีปุ่มล้าง)
+  // ช่องวันที่เป็นข้อความ วว/ดด/ปปปป (ไม่ใช้ตัวเลือกวันที่ของเครื่อง เพราะลำดับวัน-เดือนขึ้นกับภาษาเครื่อง)
+  // พิมพ์ได้ทั้ง ค.ศ./พ.ศ. แอปบันทึกเป็น d/m/yyyy (ค.ศ.) เสมอ
   function dateField(label, key) {
     var val = S.edit.v[key];
-    var raw = S.edit.orig && S.edit.orig[key];
-    var odd = !val && raw && raw !== '-'; // มีข้อความใน sheet แต่แปลงเป็นวันที่ไม่ได้
+    var lk = 'background:none;border:0;padding:0 12px 0 0;min-height:44px;font-size:14px;text-decoration:underline;color:var(--accent-ink)';
     return '<div class="f"><span>' + label + '</span>' +
-      '<input data-f="' + key + '" type="date" value="' + esc(val) + '">' +
-      (odd ? '<div class="sub">ใน sheet เป็น “' + esc(raw) + '” แอปอ่านเป็นวันที่ไม่ได้ ถ้าไม่แก้จะคงค่าเดิมไว้ เลือกวันที่เพื่อเปลี่ยน</div>' : '') +
-      (val ? '<button type="button" class="rlink" data-act="clrdate" data-k="' + key + '" style="background:none;border:0;padding:0;align-self:flex-start">ล้างวันที่ (ตั้งเป็นว่าง)</button>' : '') +
+      '<input data-f="' + key + '" type="text" inputmode="numeric" autocomplete="off" placeholder="วว/ดด/ปปปป" value="' + esc(val) + '">' +
+      '<div class="row" style="gap:0"><button type="button" data-act="todaydate" data-k="' + key + '" style="' + lk + '">วันนี้</button>' +
+      (val ? '<button type="button" data-act="clrdate" data-k="' + key + '" style="' + lk + '">ล้างให้ว่าง</button>' : '') + '</div>' +
       '</div>';
   }
   function growfield(label, key) {
@@ -396,15 +401,22 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
     readForm();
     var e = S.edit, v = e.v;
     if (!String(v.hn).trim() && !String(v.name).trim()) { S.error = 'ใส่ HN หรือชื่ออย่างน้อยหนึ่งอย่าง'; render(); return; }
-    var fields = {};
+    var fields = {}, badDates = [];
     FIELDS.forEach(function (k) {
-      var cur = DATE_FIELDS[k] ? v[k] : String(v[k]).trim();
+      if (DATE_FIELDS[k]) {
+        var dc = Core.dateChange(e.shown[k], v[k]);
+        if (dc.action === 'clear') fields[k] = '';
+        else if (dc.action === 'set') fields[k] = dc.value;
+        else if (dc.action === 'invalid') badDates.push(k === 'consultDate' ? 'วันรับเคส' : 'วันที่ผ่า');
+        return;
+      }
+      var cur = String(v[k]).trim();
       if (e.row) {
-        var origCmp = DATE_FIELDS[k] ? toISO(e.orig[k]) : String(e.orig[k] || '').trim();
-        if (cur === origCmp) return; // ไม่เปลี่ยน ไม่แตะค่าเดิมใน sheet
+        if (cur === String(e.orig[k] || '').trim()) return; // ไม่เปลี่ยน ไม่แตะค่าเดิมใน sheet
       } else if (!cur) return;
-      fields[k] = DATE_FIELDS[k] ? fromISO(cur) : cur;
+      fields[k] = cur;
     });
+    if (badDates.length) { S.error = 'วันที่ไม่ถูกต้อง (' + badDates.join(', ') + ') พิมพ์แบบ 24/10/2026 หรือ 24/10/2569 หรือกด "ล้างให้ว่าง"'; render(); return; }
     if (e.row && !Object.keys(fields).length) { back(); return; }
     S.saving = true; S.error = ''; render();
     var payload = { rotationId: S.rotationId, row: e.row, fields: fields };
@@ -741,6 +753,7 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
     else if (act === 'new') { openForm(null); }
     else if (act === 'open') { openForm(+b.getAttribute('data-row')); }
     else if (act === 'back') { back(); }
+    else if (act === 'todaydate') { readForm(); S.edit.v[b.getAttribute('data-k')] = Core.todayDMY(); render(); }
     else if (act === 'clrdate') { readForm(); S.edit.v[b.getAttribute('data-k')] = ''; render(); }
     else if (act === 'fset') { readForm(); S.edit.v[b.getAttribute('data-k')] = v; render(); }
     else if (act === 'save') { save(); }

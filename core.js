@@ -50,6 +50,21 @@
     var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
     return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] : '';
   }
+  // Date (UTC) -> "d/m/yyyy" (ค.ศ.) รูปแบบเดียวที่แอปเขียนลง sheet และแสดงในช่องวันที่
+  function formatDMY(d) { return d.getUTCDate() + '/' + (d.getUTCMonth() + 1) + '/' + d.getUTCFullYear(); }
+  function todayDMY(now) { now = now || new Date(); return now.getDate() + '/' + (now.getMonth() + 1) + '/' + now.getFullYear(); }
+
+  // ตัดสินใจว่าต้องเขียนช่องวันที่ไหม: shown = ข้อความที่แสดงตอนเปิดฟอร์ม, cur = ที่อยู่ในช่องตอนกดบันทึก
+  //  none = ไม่เปลี่ยน (ไม่แตะค่าเดิมใน sheet) | clear = ตั้งเป็นว่าง | set = เขียน value (d/m/yyyy) | invalid = อ่านเป็นวันที่ไม่ได้
+  function dateChange(shown, cur) {
+    shown = String(shown == null ? '' : shown).trim();
+    cur = String(cur == null ? '' : cur).trim();
+    if (cur === shown) return { action: 'none' };
+    if (!cur) return { action: 'clear' };
+    var d = parseDate(cur);
+    return d ? { action: 'set', value: formatDMY(d) } : { action: 'invalid' };
+  }
+
   function todayUTC(now) { now = now || new Date(); return Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()); }
   function todayISO(now) { now = now || new Date(); return now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()); }
   // วันผ่าตัด -> { kind: 'pod', n } | { kind: 'soon', n } | null
@@ -59,7 +74,7 @@
     var diff = Math.round((todayUTC(now) - d.getTime()) / 86400000);
     return diff >= 0 ? { kind: 'pod', n: diff } : { kind: 'soon', n: -diff };
   }
-  var Core = { parseDate: parseDate, toISO: toISO, fromISO: fromISO, todayUTC: todayUTC, todayISO: todayISO, pod: pod };
+  var Core = { parseDate: parseDate, formatDMY: formatDMY, todayDMY: todayDMY, dateChange: dateChange, toISO: toISO, fromISO: fromISO, todayUTC: todayUTC, todayISO: todayISO, pod: pod };
 
   /* ---------- หัวคอลัมน์ ---------- */
   var HEADER_KEYS = {
