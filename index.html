@@ -343,8 +343,8 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
       (val ? '<button type="button" data-act="clrdate" data-k="' + key + '" style="' + lk + '">ล้างให้ว่าง</button>' : '') + '</div>' +
       '</div>';
   }
-  function growfield(label, key) {
-    return '<label class="f"><span>' + label + '</span><textarea data-f="' + key + '" class="grow" rows="1">' + esc(S.edit.v[key]) + '</textarea></label>';
+  function growfield(label, key, rows) {
+    return '<label class="f"><span>' + label + '</span><textarea data-f="' + key + '" class="grow" rows="' + (rows || 1) + '">' + esc(S.edit.v[key]) + '</textarea></label>';
   }
   function autosize(t) { t.style.height = 'auto'; t.style.height = Math.max(48, t.scrollHeight) + 'px'; }
   function formView() {
@@ -376,7 +376,7 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
       '<div class="grid2">' + field('Anes', 'anes') + staffSelect() + '</div>' +
       (S.addingStaff ? '<div class="addward"><input id="newstaff" type="text" placeholder="ชื่อ staff ใหม่" style="min-height:48px;padding:0 12px;border:1px solid var(--field);border-radius:12px;background:var(--card);font-size:16px"><button data-act="addstaff">เพิ่ม</button></div>' : '') +
       '<div class="grid2">' + dateField('วันรับเคส', 'consultDate') + dateField('วันที่ผ่า', 'opDate') + '</div>' +
-      '<label class="f"><span>หมายเหตุ</span><textarea data-f="note">' + esc(v.note) + '</textarea></label>' +
+      growfield('หมายเหตุ', 'note', 4) + // เริ่ม 4 บรรทัด ขยายตามข้อความ
       (S.error ? '<div class="err">' + esc(S.error) + '</div>' : '') +
       '</div>' +
       '<div class="bar"><button class="btn ghost" data-act="back">ยกเลิก</button>' +
