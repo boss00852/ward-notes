@@ -330,14 +330,16 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
     }).join('') + '<option value="__new__">+ เพิ่ม staff ใหม่</option></select></label>';
   }
   // ช่องวันที่: ปุ่ม "ล้างวันที่" ตั้งค่าเป็นว่าง (ตัวเลือกวันที่บนมือถือบางรุ่นไม่มีปุ่มล้าง)
-  // ช่องวันที่เป็นข้อความ วว/ดด/ปปปป (ไม่ใช้ตัวเลือกวันที่ของเครื่อง เพราะลำดับวัน-เดือนขึ้นกับภาษาเครื่อง)
-  // พิมพ์ได้ทั้ง ค.ศ./พ.ศ. แอปบันทึกเป็น d/m/yyyy (ค.ศ.) เสมอ
+  // ช่องวันที่เป็นข้อความ วว/ดด/ปปปป (ลำดับคงที่ ไม่ขึ้นกับภาษาเครื่อง) พิมพ์ได้ทั้ง ค.ศ./พ.ศ.
+  // ปุ่ม "เลือกวัน" เปิดปฏิทินของเครื่อง (input type=date ที่ซ่อนไว้) แล้วเอาวันที่ที่เลือกมาใส่ช่องข้อความเป็น d/m/yyyy
+  // แอปบันทึกเป็น d/m/yyyy (ค.ศ.) เสมอ
   function dateField(label, key) {
     var val = S.edit.v[key];
     var lk = 'background:none;border:0;padding:0 12px 0 0;min-height:44px;font-size:14px;text-decoration:underline;color:var(--accent-ink)';
-    return '<div class="f"><span>' + label + '</span>' +
+    return '<div class="f" style="position:relative"><span>' + label + '</span>' +
       '<input data-f="' + key + '" type="text" inputmode="numeric" autocomplete="off" placeholder="วว/ดด/ปปปป" value="' + esc(val) + '">' +
-      '<div class="row" style="gap:0"><button type="button" data-act="todaydate" data-k="' + key + '" style="' + lk + '">วันนี้</button>' +
+      '<input data-dp="' + key + '" type="date" value="' + esc(Core.toISO(val)) + '" tabindex="-1" aria-hidden="true" style="position:absolute;left:0;bottom:0;width:1px;height:1px;min-height:0;padding:0;border:0;opacity:0;pointer-events:none">' +
+      '<div class="row" style="gap:0"><button type="button" data-act="pickdate" data-k="' + key + '" style="' + lk + '">เลือกวัน</button>' +
       (val ? '<button type="button" data-act="clrdate" data-k="' + key + '" style="' + lk + '">ล้างให้ว่าง</button>' : '') + '</div>' +
       '</div>';
   }
@@ -634,6 +636,9 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
   });
   app.addEventListener('change', function (ev) {
     var n = ev.target;
+    if (n.getAttribute && n.getAttribute('data-dp')) { // เลือกวันจากปฏิทิน -> ใส่ช่องข้อความเป็น d/m/yyyy (ค.ศ.)
+      readForm(); S.edit.v[n.getAttribute('data-dp')] = Core.fromISO(n.value); render(); return;
+    }
     if (n.getAttribute && n.getAttribute('data-r') === 'renameFile' && S.rot) { S.rot.renameFile = n.checked; return; }
     if (n.getAttribute && n.getAttribute('data-f') === 'ward') {
       readForm(); // เก็บค่าที่พิมพ์ค้างไว้ก่อน ไม่งั้น render ใหม่แล้วหาย
@@ -753,7 +758,10 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
     else if (act === 'new') { openForm(null); }
     else if (act === 'open') { openForm(+b.getAttribute('data-row')); }
     else if (act === 'back') { back(); }
-    else if (act === 'todaydate') { readForm(); S.edit.v[b.getAttribute('data-k')] = Core.todayDMY(); render(); }
+    else if (act === 'pickdate') {
+      var dp = app.querySelector('[data-dp="' + b.getAttribute('data-k') + '"]');
+      if (dp) { try { if (dp.showPicker) dp.showPicker(); else { dp.focus(); dp.click(); } } catch (err) { dp.focus(); dp.click(); } }
+    }
     else if (act === 'clrdate') { readForm(); S.edit.v[b.getAttribute('data-k')] = ''; render(); }
     else if (act === 'fset') { readForm(); S.edit.v[b.getAttribute('data-k')] = v; render(); }
     else if (act === 'save') { save(); }
