@@ -53,9 +53,20 @@
       ranges.map(function (r) { return 'ranges=' + rng(r); }).join('&'))
       .then(function (res) { return (res.valueRanges || []).map(function (v) { return v.values || []; }); });
   }
-  function valuesBatchUpdate(sid, data) {
-    if (!data.length) return Promise.resolve();
-    return req('POST', BASE + '/' + sid + '/values:batchUpdate', { valueInputOption: 'RAW', data: data });
+  // verify = true: ขอให้ Google ส่งค่าที่เขียนแล้วกลับมา (ไม่เพิ่มจำนวนคำขอ) ใช้ตรวจว่าตรงกับที่ส่ง
+  function valuesBatchUpdate(sid, data, verify) {
+    if (!data.length) return Promise.resolve([]);
+    var body = { valueInputOption: 'RAW', data: data };
+    if (verify) { body.includeValuesInResponse = true; body.responseValueRenderOption = 'FORMATTED_VALUE'; }
+    return req('POST', BASE + '/' + sid + '/values:batchUpdate', body).then(function (res) { return (res && res.responses) || []; });
+  }
+  // ค่าที่ Google ส่งกลับตรงกับที่เราส่งไหม (ไม่มีค่าส่งกลับ = ตรวจไม่ได้ ถือว่าไม่ผิด)
+  function sameAsSent(sentRows, gotRows) {
+    if (!gotRows) return true;
+    return sentRows.every(function (sent, i) {
+      var got = gotRows[i] || [];
+      return sent.every(function (v, j) { return cell(got[j]) === cell(v); });
+    });
   }
   function structBatch(sid, requests) {
     return req('POST', BASE + '/' + sid + ':batchUpdate', { requests: requests });
@@ -162,17 +173,23 @@
           for (var c = run[0]; c < run[0] + run[1]; c++) vals.push(String(fields[keys[c]] == null ? '' : fields[keys[c]]));
           return { range: MAIN + '!' + C.a1(run[0] + 1, row) + ':' + C.a1(run[0] + run[1], row), values: [vals] };
         });
-        return valuesBatchUpdate(sid, data).then(function () { return { row: row, ms: env.now() - t0 }; });
+        return valuesBatchUpdate(sid, data, true).then(function (resps) {
+          var ok = !resps.length || resps.every(function (r, i) {
+            return sameAsSent(data[i].values, r && r.updatedData ? r.updatedData.values || [[]] : null);
+          });
+          return { row: row, ms: env.now() - t0, mismatch: !ok };
+        });
       }
       // แถวใหม่: ต่อท้ายตาราง (Sheets หาแถวว่างถัดไปให้เอง)
       var arr = keys.map(function (k) {
         return k && Object.prototype.hasOwnProperty.call(fields, k) ? String(fields[k] == null ? '' : fields[k]) : '';
       });
-      return req('POST', BASE + '/' + sid + '/values/' + rng(MAIN + '!A1') + ':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS',
+      return req('POST', BASE + '/' + sid + '/values/' + rng(MAIN + '!A1') + ':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS&includeValuesInResponse=true&responseValueRenderOption=FORMATTED_VALUE',
         { values: [arr] }).then(function (res) {
         var m = /!\$?[A-Z]+\$?(\d+)/.exec((res.updates && res.updates.updatedRange) || '');
         if (!m) throw new Error('บันทึกแล้วแต่ไม่ทราบเลขแถว กรุณารีเฟรช');
-        return { row: Number(m[1]), ms: env.now() - t0 };
+        var back = res.updates && res.updates.updatedData && res.updates.updatedData.values;
+        return { row: Number(m[1]), ms: env.now() - t0, mismatch: !sameAsSent([arr], back ? [back[0] || []] : null) };
       });
     });
   }

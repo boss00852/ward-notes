@@ -115,11 +115,11 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
 <div id="app"></div>
 <div id="toast" class="toast hidden"></div>
 
-<script src="core.js?v=r17"></script>
-<script src="config.js?v=r17"></script>
-<script src="auth.js?v=r17"></script>
-<script src="api.js?v=r17"></script>
-<script>if (/[?&]mock=1/.test(location.search)) document.write('<script src="mock.js?v=r17"><\/script>');</script>
+<script src="core.js?v=r18"></script>
+<script src="config.js?v=r18"></script>
+<script src="auth.js?v=r18"></script>
+<script src="api.js?v=r18"></script>
+<script>if (/[?&]mock=1/.test(location.search)) document.write('<script src="mock.js?v=r18"><\/script>');</script>
 <script>
 (function () {
   var m = /[?&]mock=1/.test(location.search) ? WNMock.create() : null;
@@ -139,7 +139,7 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
 
   var FIELDS = ['status','ward','hn','name','age','sex','dx','op','anes','staff','consultDate','opDate','note'];
   var DATE_FIELDS = { consultDate: 1, opDate: 1 };
-  var S = { data: { patients: [], wards: [], staffs: [] }, status: 'in service', q: '', view: 'list', edit: null, loading: true, error: '', saving: false, addingWard: false, addingStaff: false, scroll: 0, limit: PAGE, rotationId: null, rot: null, wm: null, timing: '', refreshing: false, fromCache: false, cacheNote: '', awaitTap: false };
+  var S = { data: { patients: [], wards: [], staffs: [] }, status: 'in service', q: '', view: 'list', edit: null, loading: true, error: '', saving: false, addingWard: false, addingStaff: false, scroll: 0, limit: PAGE, rotationId: null, rot: null, wm: null, writeSeq: 0, draft: null, timing: '', refreshing: false, fromCache: false, cacheNote: '', awaitTap: false };
   var app = document.getElementById('app');
 
   /* ---------- helpers ---------- */
@@ -204,15 +204,39 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
       return d && Array.isArray(d.patients) && Array.isArray(d.wards) && Array.isArray(d.staffs) && Array.isArray(d.rotations) && d.rotationId ? o : null;
     } catch (e) { return null; }
   }
-  function cacheClear() { try { localStorage.removeItem(CACHE_KEY); } catch (e) { /* ignore */ } }
+  function cacheClear() { try { localStorage.removeItem(CACHE_KEY); } catch (e) { /* ignore */ } draftClear(); }
+
+  // ร่างฟอร์มที่ยังไม่ได้บันทึก (เก็บในเครื่อง) กันข้อความหายเมื่อรีเฟรช/เบราว์เซอร์ปิดหน้า กู้คืนได้จากหน้ารายการ
+  var DRAFT_KEY = 'wn_draft_v1', draftTimer = null;
+  function draftSave() {
+    if (S.view !== 'form' || !S.edit) return;
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ t: Date.now(), rotationId: S.rotationId, edit: S.edit })); } catch (e) { /* ignore */ }
+  }
+  function draftClear() { clearTimeout(draftTimer); try { localStorage.removeItem(DRAFT_KEY); } catch (e) { /* ignore */ } }
+  function draftLoad() {
+    try {
+      var o = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+      if (o && o.edit && o.edit.v && o.edit.shown && Date.now() - o.t < 7 * 86400000) return o;
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+  function draftBanner() {
+    var d = S.draft;
+    if (!d || (S.rotationId && d.rotationId !== S.rotationId)) return '';
+    var who = d.edit.v.name || (d.edit.v.hn ? 'HN ' + d.edit.v.hn : 'คนไข้ใหม่');
+    return '<div class="rform" style="border-color:var(--amber-ink)"><div class="nm" style="font-size:16px">มีข้อความที่ยังไม่ได้บันทึก</div>' +
+      '<div class="sub">' + esc(who) + ' · แก้ไขเมื่อ ' + esc(hhmm(d.t)) + '</div>' +
+      '<div class="rbtns"><button class="btn sm solid" data-act="draftrestore">กู้คืน</button><button class="btn sm" data-act="draftdrop">ทิ้ง</button></div></div>';
+  }
   function hhmm(t) { var d = new Date(t); return d.getHours() + ':' + pad2(d.getMinutes()); }
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
 
   function load(quiet) {
     if (!quiet) { S.loading = true; render(); }
     S.refreshing = true;
-    var t0 = performance.now();
+    var t0 = performance.now(), seq = S.writeSeq;
     return call('loadAll', S.rotationId).then(function (d) {
+      if (S.writeSeq !== seq) return load(true); // มีการบันทึกเสร็จระหว่างที่รอ: ข้อมูลนี้อาจยังไม่รวมค่าใหม่ อย่าเอามาทับ
       S.timing = 'โหลด ' + fmtMs(performance.now() - t0) + ' (server ' + fmtMs(d.ms) + ') · ' + d.patients.length + ' แถว';
       S.data = d; S.rotationId = d.rotationId; S.loading = false; S.error = '';
       S.refreshing = false; S.fromCache = false; cacheSave();
@@ -289,7 +313,7 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
       chip('in service', 'in service ' + count('in service')) +
       chip('off service', 'off service ' + count('off service')) +
       chip('all', 'ทั้งหมด ' + count('all')) + '</div></div>' +
-      '<div class="list">' + body + '</div>' +
+      '<div class="list">' + draftBanner() + body + '</div>' +
       '<button class="fab" data-act="new" aria-label="เพิ่มคนไข้"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>';
   }
   function chip(v, label) {
@@ -426,14 +450,15 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
     var ts = performance.now(), srv = 0;
     call('savePatient', payload)
       .then(function (r) {
-        S.saving = false; srv = r && r.ms;
+        S.saving = false; srv = r && r.ms; S.writeSeq++; draftClear();
         applyLocal(e, fields, r && r.row); cacheSave(); // ไม่โหลดทั้งตารางใหม่ (ช้า) แค่อัปเดตรายการในเครื่องตามที่เพิ่งเขียน
         S.timing = 'บันทึก ' + fmtMs(performance.now() - ts) + ' (server ' + fmtMs(srv || 0) + ')';
-        toast('บันทึกแล้ว'); S.view = 'list'; render(); window.scrollTo(0, S.scroll); })
+        toast(r && r.mismatch ? 'บันทึกแล้ว แต่ค่าที่ Google ส่งกลับไม่ตรงกับที่พิมพ์ กรุณาตรวจใน Sheets' : 'บันทึกแล้ว');
+        S.view = 'list'; render(); window.scrollTo(0, S.scroll); })
       .catch(function (err) { S.saving = false; S.error = err.message; render(); });
   }
 
-  function back() { S.view = 'list'; S.edit = null; S.error = ''; render(); window.scrollTo(0, S.scroll); }
+  function back() { draftClear(); S.view = 'list'; S.edit = null; S.error = ''; render(); window.scrollTo(0, S.scroll); }
 
   /* ---------- render + events ---------- */
   /* ---------- rotation ---------- */
@@ -616,6 +641,10 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
 
   var searchTimer;
   app.addEventListener('input', function (ev) {
+    if (S.view === 'form' && ev.target.getAttribute && ev.target.getAttribute('data-f')) {
+      clearTimeout(draftTimer);
+      draftTimer = setTimeout(function () { if (S.view === 'form' && S.edit) { readForm(); draftSave(); } }, 400);
+    }
     var rk = ev.target.getAttribute && ev.target.getAttribute('data-r');
     if (rk && S.rot) { if (ev.target.type !== 'checkbox') S.rot[rk] = ev.target.value; return; }
     var wk = ev.target.getAttribute && ev.target.getAttribute('data-w');
@@ -762,6 +791,10 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
       var dp = app.querySelector('[data-dp="' + b.getAttribute('data-k') + '"]');
       if (dp) { try { if (dp.showPicker) dp.showPicker(); else { dp.focus(); dp.click(); } } catch (err) { dp.focus(); dp.click(); } }
     }
+    else if (act === 'draftrestore') {
+      if (S.draft) { S.edit = S.draft.edit; S.draft = null; S.error = ''; S.addingWard = false; S.addingStaff = false; S.view = 'form'; render(); window.scrollTo(0, 0); }
+    }
+    else if (act === 'draftdrop') { draftClear(); S.draft = null; render(); }
     else if (act === 'clrdate') { readForm(); S.edit.v[b.getAttribute('data-k')] = ''; render(); }
     else if (act === 'fset') { readForm(); S.edit.v[b.getAttribute('data-k')] = v; render(); }
     else if (act === 'save') { save(); }
@@ -783,6 +816,7 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
     }
   });
 
+  S.draft = draftLoad();
   var cached = cacheLoad();
   if (cached) {
     S.data = cached.data; S.rotationId = cached.data.rotationId; S.loading = false;

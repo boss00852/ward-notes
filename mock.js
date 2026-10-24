@@ -157,7 +157,9 @@
       for (var j = 0; j < body.data.length; j++) {
         if (!setValues(m[1], body.data[j].range, body.data[j].values)) return fail(400, 'Unable to parse range: ' + body.data[j].range);
       }
-      return reply(200, { totalUpdatedCells: body.data.length });
+      var resp = { totalUpdatedCells: body.data.length };
+      if (body.includeValuesInResponse) resp.responses = body.data.map(function (d) { return { updatedRange: d.range, updatedData: { values: getValues(m[1], d.range) } }; });
+      return reply(200, resp);
     }
     if ((m = /^\/([^/:]+)\/values\/(.+):append$/.exec(path)) && method === 'POST') {
       var rangeStr = decodeURIComponent(m[2]), p = parseRange(rangeStr), t2 = p && tabOf(m[1], p.tab);
@@ -166,7 +168,9 @@
       t2.rows.forEach(function (r, i) { if (r.some(function (c) { return c !== ''; })) last = i + 1; });
       var row = last + 1, vals = body.values[0];
       setValues(m[1], p.tab + '!A' + row, [vals]);
-      return reply(200, { updates: { updatedRange: p.tab + '!A' + row + ':' + colName(vals.length) + row } });
+      var up = { updatedRange: p.tab + '!A' + row + ':' + colName(vals.length) + row };
+      if (/includeValuesInResponse=true/.test(url)) up.updatedData = { values: getValues(m[1], p.tab + '!A' + row + ':' + colName(vals.length) + row) };
+      return reply(200, { updates: up });
     }
     return fail(404, 'mock: ไม่รองรับ ' + method + ' ' + path);
   }
