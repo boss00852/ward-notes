@@ -9,12 +9,34 @@
   /* ---------- วันที่ / POD ---------- */
   function pad(n) { return (n < 10 ? '0' : '') + n; }
 
-  // วันที่ใน sheet เป็นข้อความ d/m/yyyy (ปนทั้ง ค.ศ. / พ.ศ. / ปีเพี้ยน เช่น 1969 หรือ "-") -> Date (UTC เที่ยงคืน) หรือ null
+  // ชื่อเดือนไทย/อังกฤษ (ตัดจุดและพิมพ์เล็กก่อนเทียบ) -> เลขเดือน
+  var MONTHS = {};
+  [['มค', 'มกราคม', 'jan', 'january'], ['กพ', 'กุมภาพันธ์', 'feb', 'february'], ['มีค', 'มีนาคม', 'mar', 'march'],
+   ['เมย', 'เมษายน', 'apr', 'april'], ['พค', 'พฤษภาคม', 'may'], ['มิย', 'มิถุนายน', 'jun', 'june'],
+   ['กค', 'กรกฎาคม', 'jul', 'july'], ['สค', 'สิงหาคม', 'aug', 'august'], ['กย', 'กันยายน', 'sep', 'sept', 'september'],
+   ['ตค', 'ตุลาคม', 'oct', 'october'], ['พย', 'พฤศจิกายน', 'nov', 'november'], ['ธค', 'ธันวาคม', 'dec', 'december']
+  ].forEach(function (names, i) { names.forEach(function (n) { MONTHS[n] = i + 1; }); });
+
+  // ปี 4 หลัก: > 2400 = พ.ศ.; ปี 2 หลัก: 50-99 = พ.ศ. 25xx (69 -> 2026), 00-49 = ค.ศ. 20xx
+  function fullYear(str) {
+    var y = +str;
+    if (str.length === 2) return y >= 50 ? 2500 + y - 543 : 2000 + y;
+    return y > 2400 ? y - 543 : y;
+  }
+
+  // วันที่ใน sheet เป็นข้อความ (ปนทั้ง ค.ศ. / พ.ศ. / ปีเพี้ยน เช่น 1969 หรือ "-") -> Date (UTC เที่ยงคืน) หรือ null
+  // รองรับ d/m/yyyy, d-m-yy, d.m.yyyy, yyyy-mm-dd, "12 ต.ค. 2569", "12 Oct 2026" และตัดเวลาท้ายออก
   function parseDate(s) {
-    var m = /^\s*(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})\s*$/.exec(s == null ? '' : String(s));
-    if (!m) return null;
-    var d = +m[1], mo = +m[2], y = +m[3];
-    if (y > 2400) y -= 543;
+    if (s == null) return null;
+    var t = String(s).trim().replace(/[T\s]\d{1,2}:\d{2}(:\d{2})?.*$/, '').trim();
+    if (!t) return null;
+    var d, mo, y, m;
+    if ((m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(t))) { y = +m[1]; mo = +m[2]; d = +m[3]; }
+    else if ((m = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4}|\d{2})$/.exec(t))) { d = +m[1]; mo = +m[2]; y = fullYear(m[3]); }
+    else if ((m = /^(\d{1,2})[\s\-\/]+([A-Za-zก-๙.]+)[\s\-\/]*(\d{4}|\d{2})$/.exec(t))) {
+      d = +m[1]; mo = MONTHS[m[2].replace(/\./g, '').toLowerCase()]; y = fullYear(m[3]);
+      if (!mo) return null;
+    } else return null;
     if (y < 2000 || y > 2100 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
     var dt = new Date(Date.UTC(y, mo - 1, d));
     return dt.getUTCDate() === d ? dt : null;

@@ -115,11 +115,11 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
 <div id="app"></div>
 <div id="toast" class="toast hidden"></div>
 
-<script src="core.js?v=r15"></script>
-<script src="config.js?v=r15"></script>
-<script src="auth.js?v=r15"></script>
-<script src="api.js?v=r15"></script>
-<script>if (/[?&]mock=1/.test(location.search)) document.write('<script src="mock.js?v=r15"><\/script>');</script>
+<script src="core.js?v=r16"></script>
+<script src="config.js?v=r16"></script>
+<script src="auth.js?v=r16"></script>
+<script src="api.js?v=r16"></script>
+<script>if (/[?&]mock=1/.test(location.search)) document.write('<script src="mock.js?v=r16"><\/script>');</script>
 <script>
 (function () {
   var m = /[?&]mock=1/.test(location.search) ? WNMock.create() : null;
@@ -168,7 +168,7 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
   // badge วันผ่า: ผ่าแล้ว = POD n, ยังไม่ผ่า = ผ่าในอีก n วัน
   function podBadge(p) {
     var x = Core.pod(p.opDate);
-    if (!x) return '';
+    if (!x) return p.opDate && p.opDate !== '-' ? '<span class="badge b-off">ผ่า ' + esc(p.opDate) + '</span>' : ''; // อ่านเป็นวันที่ไม่ได้: แสดงตามที่เขียนใน sheet
     return x.kind === 'pod' ? '<span class="badge b-pod">POD ' + x.n + '</span>'
       : '<span class="badge b-soon">ผ่าในอีก ' + x.n + ' วัน</span>';
   }
@@ -266,7 +266,7 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
     else order.forEach(function (w) {
       body += '<div class="group"><h2>' + esc(w) + '</h2><span class="sub">' + groups[w].length + ' ราย</span></div>';
       groups[w].forEach(function (p) {
-        var recv = Core.parseDate(p.consultDate) ? 'รับเคส ' + p.consultDate : '';
+        var recv = p.consultDate && p.consultDate !== '-' ? 'รับเคส ' + p.consultDate : ''; // แสดงตามที่เขียนใน sheet แม้อ่านเป็นวันที่ไม่ได้
         body += '<button class="card" data-act="open" data-row="' + p.row + '">' +
           '<div class="l1"><div class="tophead">' + infoBlock(p) + '</div>' +
           (p.status === 'off service' ? '<span class="badge b-off">off service</span>' : '') + '</div>' +
@@ -328,8 +328,11 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
   // ช่องวันที่: ปุ่ม "ล้างวันที่" ตั้งค่าเป็นว่าง (ตัวเลือกวันที่บนมือถือบางรุ่นไม่มีปุ่มล้าง)
   function dateField(label, key) {
     var val = S.edit.v[key];
+    var raw = S.edit.orig && S.edit.orig[key];
+    var odd = !val && raw && raw !== '-'; // มีข้อความใน sheet แต่แปลงเป็นวันที่ไม่ได้
     return '<div class="f"><span>' + label + '</span>' +
       '<input data-f="' + key + '" type="date" value="' + esc(val) + '">' +
+      (odd ? '<div class="sub">ใน sheet เป็น “' + esc(raw) + '” แอปอ่านเป็นวันที่ไม่ได้ ถ้าไม่แก้จะคงค่าเดิมไว้ เลือกวันที่เพื่อเปลี่ยน</div>' : '') +
       (val ? '<button type="button" class="rlink" data-act="clrdate" data-k="' + key + '" style="background:none;border:0;padding:0;align-self:flex-start">ล้างวันที่ (ตั้งเป็นว่าง)</button>' : '') +
       '</div>';
   }
