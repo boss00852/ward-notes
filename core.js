@@ -81,6 +81,10 @@
     'สถานะ': 'status', 'หมายเหตุ': 'note',
     'วันรับ consult': 'consultDate', 'วันที่รับ consult': 'consultDate', 'วันรับเคส': 'consultDate', 'วันที่รับเคส': 'consultDate',
     'วันที่ผ่า': 'opDate', 'ward ที่อยู่': 'ward', 'hn': 'hn', 'ชื่อ': 'name', 'เพศ': 'sex', 'อายุ': 'age',
+    // ชื่อหัวที่พบบ่อยของช่องสั้น (ตรงตัวเท่านั้น ไม่เดา เพื่อไม่ให้ "ชื่อ staff" ไปเป็นชื่อคนไข้)
+    'เลข hn': 'hn', 'hn no.': 'hn', 'hn no': 'hn', 'ชื่อ-สกุล': 'name', 'ชื่อ - สกุล': 'name', 'ชื่อ สกุล': 'name', 'ชื่อสกุล': 'name',
+    'ชื่อ-นามสกุล': 'name', 'ชื่อ - นามสกุล': 'name', 'ชื่อ นามสกุล': 'name', 'ชื่อ-สกุลคนไข้': 'name', 'name': 'name', 'ชื่อคนไข้': 'name',
+    'sex': 'sex', 'gender': 'sex', 'age': 'age', 'อายุ (ปี)': 'age', 'status': 'status',
     'diagnosis': 'dx', 'operation/management': 'op', 'anes': 'anes', 'staff': 'staff'
   };
   var CONTENT_KEYS = ['hn', 'name', 'dx', 'op', 'note', 'consultDate', 'opDate'];
