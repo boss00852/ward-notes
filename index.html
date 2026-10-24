@@ -115,11 +115,11 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
 <div id="app"></div>
 <div id="toast" class="toast hidden"></div>
 
-<script src="core.js?v=r14"></script>
-<script src="config.js?v=r14"></script>
-<script src="auth.js?v=r14"></script>
-<script src="api.js?v=r14"></script>
-<script>if (/[?&]mock=1/.test(location.search)) document.write('<script src="mock.js?v=r14"><\/script>');</script>
+<script src="core.js?v=r15"></script>
+<script src="config.js?v=r15"></script>
+<script src="auth.js?v=r15"></script>
+<script src="api.js?v=r15"></script>
+<script>if (/[?&]mock=1/.test(location.search)) document.write('<script src="mock.js?v=r15"><\/script>');</script>
 <script>
 (function () {
   var m = /[?&]mock=1/.test(location.search) ? WNMock.create() : null;
@@ -321,9 +321,17 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
   function staffSelect() {
     var v = S.edit.v, list = S.data.staffs.slice();
     if (v.staff && list.indexOf(v.staff) < 0) list.unshift(v.staff);
-    return '<label class="f"><span>staff</span><select data-f="staff"><option value="">เลือก staff</option>' + list.map(function (n) {
+    return '<label class="f"><span>staff</span><select data-f="staff"><option value="">— ไม่ระบุ staff —</option>' + list.map(function (n) {
       return '<option value="' + esc(n) + '"' + (n === v.staff ? ' selected' : '') + '>' + esc(n) + '</option>';
     }).join('') + '<option value="__new__">+ เพิ่ม staff ใหม่</option></select></label>';
+  }
+  // ช่องวันที่: ปุ่ม "ล้างวันที่" ตั้งค่าเป็นว่าง (ตัวเลือกวันที่บนมือถือบางรุ่นไม่มีปุ่มล้าง)
+  function dateField(label, key) {
+    var val = S.edit.v[key];
+    return '<div class="f"><span>' + label + '</span>' +
+      '<input data-f="' + key + '" type="date" value="' + esc(val) + '">' +
+      (val ? '<button type="button" class="rlink" data-act="clrdate" data-k="' + key + '" style="background:none;border:0;padding:0;align-self:flex-start">ล้างวันที่ (ตั้งเป็นว่าง)</button>' : '') +
+      '</div>';
   }
   function growfield(label, key) {
     return '<label class="f"><span>' + label + '</span><textarea data-f="' + key + '" class="grow" rows="1">' + esc(S.edit.v[key]) + '</textarea></label>';
@@ -357,7 +365,7 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
       growfield('Operation / Management', 'op') +
       '<div class="grid2">' + field('Anes', 'anes') + staffSelect() + '</div>' +
       (S.addingStaff ? '<div class="addward"><input id="newstaff" type="text" placeholder="ชื่อ staff ใหม่" style="min-height:48px;padding:0 12px;border:1px solid var(--field);border-radius:12px;background:var(--card);font-size:16px"><button data-act="addstaff">เพิ่ม</button></div>' : '') +
-      '<div class="grid2">' + field('วันรับเคส', 'consultDate', 'date') + field('วันที่ผ่า', 'opDate', 'date') + '</div>' +
+      '<div class="grid2">' + dateField('วันรับเคส', 'consultDate') + dateField('วันที่ผ่า', 'opDate') + '</div>' +
       '<label class="f"><span>หมายเหตุ</span><textarea data-f="note">' + esc(v.note) + '</textarea></label>' +
       (S.error ? '<div class="err">' + esc(S.error) + '</div>' : '') +
       '</div>' +
@@ -730,6 +738,7 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
     else if (act === 'new') { openForm(null); }
     else if (act === 'open') { openForm(+b.getAttribute('data-row')); }
     else if (act === 'back') { back(); }
+    else if (act === 'clrdate') { readForm(); S.edit.v[b.getAttribute('data-k')] = ''; render(); }
     else if (act === 'fset') { readForm(); S.edit.v[b.getAttribute('data-k')] = v; render(); }
     else if (act === 'save') { save(); }
     else if (act === 'addstaff') {
