@@ -392,8 +392,9 @@
 
   // สร้าง Google Sheet ใหม่ (Main + Staffs + Wards) ใส่ข้อมูลตั้งต้น แล้วลงทะเบียนเป็น rotation ที่ใช้อยู่
   // rows = แถวคนไข้ (13 ช่องตามหัว Main) ใส่ได้ตอนย้ายข้อมูล; คืน rotationsResult + url
-  function buildRotation(name, wards, staffs, rows) {
+  function buildRotation(name, wards, staffs, rows, extraHeaders) {
     rows = rows || [];
+    var headers = MAIN_HEADERS.concat(extraHeaders || []); // คอลัมน์เสริม (จากการนำเข้า) ต่อท้ายคอลัมน์มาตรฐาน
     var url = '';
     return req('POST', BASE, {
       properties: { title: name, locale: 'th_TH', timeZone: 'Asia/Bangkok' },
@@ -407,11 +408,11 @@
       var ids = {};
       (ss.sheets || []).forEach(function (s) { ids[s.properties.title] = s.properties.sheetId; });
       var data = [
-        { range: MAIN + '!A1:' + C.a1(MAIN_HEADERS.length, 1), values: [MAIN_HEADERS] },
+        { range: MAIN + '!A1:' + C.a1(headers.length, 1), values: [headers] },
         { range: WARDS + '!A1:A' + (wards.length + 1), values: [[WARDS_HEADER]].concat(wards.map(function (w) { return [w]; })) }
       ];
       if (staffs.length) data.push({ range: STAFFS + '!A1:A' + staffs.length, values: staffs.map(function (s) { return [s]; }) });
-      if (rows.length) data.push({ range: MAIN + '!A2:' + C.a1(MAIN_HEADERS.length, rows.length + 1), values: rows });
+      if (rows.length) data.push({ range: MAIN + '!A2:' + C.a1(headers.length, rows.length + 1), values: rows });
       var reqs = [
         { repeatCell: { range: { sheetId: ids[MAIN], startRowIndex: 0, endRowIndex: 1 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: 'userEnteredFormat.textFormat.bold' } },
         { repeatCell: { range: { sheetId: ids[WARDS], startRowIndex: 0, endRowIndex: 1 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: 'userEnteredFormat.textFormat.bold' } },
@@ -441,25 +442,33 @@
     return buildRotation(name, C.normalizeWards(opts.wards), C.normalizeNames(opts.staffs, ''), []);
   }
 
-  // ย้ายจาก sheet โครงเดิม (แท็บ "ค้าง ward" + "consult" + "Wards") ไปเป็น sheet ใหม่โครง Main/Staffs/Wards
+  // นำเข้าจากไฟล์เดิม: ตรวจทุกแท็บเอง (โครงเดิม "ค้าง ward" + "consult", หรือ Main ที่หัวคอลัมน์ไม่ตรงมาตรฐาน,
+  // มีแถวชื่อเรื่องด้านบน, มีคอลัมน์เสริม) แล้วสร้าง sheet ใหม่โครง Main/Staffs/Wards หัวมาตรฐาน
   // อ่านอย่างเดียว ไม่แก้ sheet ต้นฉบับ opts: { url, name }  คืน rotationsResult + url + stats
   function importLegacy(opts) {
     opts = opts || {};
     var sid = C.extractSheetId(opts.url);
     if (!sid) return Promise.reject(new Error('ลิงก์หรือ ID ของ sheet ไม่ถูกต้อง'));
     return req('GET', BASE + '/' + sid + '?fields=' + rng('properties.title,sheets.properties.title')).then(function (ss) {
-      var tabs = (ss.sheets || []).map(function (s) { return s.properties.title; });
-      if (tabs.indexOf('ค้าง ward') < 0 && tabs.indexOf('consult') < 0) {
-        throw new Error('ไม่พบแท็บ "ค้าง ward" หรือ "consult" ใน sheet นี้ (ถ้าเป็นโครงใหม่อยู่แล้ว ให้ใช้ "ผูก sheet ที่มีอยู่")');
-      }
-      var want = ['ค้าง ward', 'consult', WARDS].filter(function (t) { return tabs.indexOf(t) >= 0; });
-      return batchGet(sid, want.map(function (t) { return "'" + t + "'!A1:Z"; })).then(function (vr) {
-        var by = {};
-        want.forEach(function (t, i) { by[t] = vr[i] || []; });
-        var wardsList = firstCol(by[WARDS] || []).slice(1).filter(Boolean);
-        var plan = C.migratePlan(by['ค้าง ward'], by.consult, wardsList);
+      var titles = (ss.sheets || []).map(function (s) { return s.properties.title; });
+      var wardsTab = titles.filter(function (t) { return /^wards?$/i.test(t); })[0];
+      var staffsTab = titles.filter(function (t) { return /^staffs?$/i.test(t); })[0];
+      var cands = titles.filter(function (t) { return t !== wardsTab && t !== staffsTab; });
+      var q = function (t) { return "'" + t.replace(/'/g, "''") + "'"; };
+      var ranges = cands.map(function (t) { return q(t) + '!A1:AZ'; });
+      if (wardsTab) ranges.push(q(wardsTab) + '!A:A');
+      if (staffsTab) ranges.push(q(staffsTab) + '!A:A');
+      return batchGet(sid, ranges).then(function (vr) {
+        var i = cands.length;
+        var wardsList = wardsTab ? firstCol(vr[i++] || []).slice(1).filter(Boolean) : [];
+        var staffsList = staffsTab ? C.dropStaffHeader(firstCol(vr[i++] || []).filter(Boolean)) : [];
+        var plan = C.importPlan(cands.map(function (t, j) { return { title: t, values: vr[j] || [] }; }), wardsList, staffsList);
+        if (!plan.rows.length) {
+          throw new Error('ไม่พบข้อมูลคนไข้ที่นำเข้าได้ในไฟล์นี้ (ต้องมีแถวหัวคอลัมน์ที่มี HN/ชื่อ/Diagnosis ฯลฯ อย่างน้อย 3 ช่อง)' +
+            (plan.stats.skippedTabs.length ? ' · แท็บที่ข้าม: ' + plan.stats.skippedTabs.map(function (t) { return t.title; }).join(', ') : ''));
+        }
         var name = String(opts.name || '').trim() || ((ss.properties && ss.properties.title) || 'Rotation') + ' (โครงใหม่)';
-        return buildRotation(name, C.normalizeWards(wardsList), plan.staffs, plan.rows).then(function (res) {
+        return buildRotation(name, plan.wards, plan.staffs, plan.rows, plan.extraHeaders).then(function (res) {
           res.stats = plan.stats;
           return res;
         });

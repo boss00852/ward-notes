@@ -50,6 +50,22 @@
     { title: 'Wards', rows: [['รายชื่อ wards ทั้งหมด'], ['ENT ชั้น 11'], ['Trauma ชั้น 8'], ['Ward อื่นๆ']] }
   ]);
 
+  // ไฟล์โครง 3 แท็บที่จัดเอง: มีแถวชื่อเรื่อง + หัวที่แก้ชื่อ + คอลัมน์เสริม + แท็บที่ไม่ใช่ตาราง (ข้อมูลสมมติ)
+  var IRREGULAR_ID = 'MOCKIRREGULAR0000001';
+  newSheet(IRREGULAR_ID, 'ตารางคนไข้ (จัดเอง mock)', [
+    { title: 'Main', rows: [
+      ['ตารางคนไข้ MU ตุลาคม'],
+      [],
+      ['สถานะ', 'หมายเหตุ/บันทึกเพิ่มเติม', 'วันรับ / วัน consult', 'วันที่ผ่า', 'ward ที่อยู่', 'เลข HN', 'ชื่อ - สกุล', 'เพศ', 'อายุ (ปี)', 'Diagnosis', 'Operation/Management', 'Anes', 'Staff ผู้ดูแล', 'เบอร์ญาติ'],
+      ['in service', 'n1', '1/10/2569', '', 'ICU', '000501', 'จ ตัวอย่าง', 'ชาย', '50', 'dx1', '', '', 'ทพ.ง', '081-000-0000'],
+      ['', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+      ['in service', '', '2/10/2569', '', 'ENT ชั้น 11', '000502', 'ฉ ตัวอย่าง', 'หญิง', '33', 'dx2', 'op2', 'GA', 'ทพ.ก', ''],
+      ['', '', '', '', '', '', '', '', '', '', '', '', '', 'โทรกลับ']] },
+    { title: 'Notes', rows: [['อะไรก็ได้'], ['ไม่ใช่ตารางคนไข้']] },
+    { title: 'Staffs', rows: [['ทพ.ก']] },
+    { title: 'Wards', rows: [['รายชื่อ wards ทั้งหมด'], ['ENT ชั้น 11'], ['Ward อื่นๆ']] }
+  ]);
+
   function tabOf(id, title) {
     var s = store[id];
     if (!s) return null;
@@ -185,5 +201,5 @@
   if (opts.empty) delete mem.wn_registry;
   var auth = { have: function () { return true; }, token: function () { return Promise.resolve('mock-token'); }, expire: function () {} };
 
-  return { fetch: fetchFn, auth: auth, storage: storage, store: store, calls: calls, SEED_ID: SEED_ID, LEGACY_ID: LEGACY_ID };
+  return { fetch: fetchFn, auth: auth, storage: storage, store: store, calls: calls, SEED_ID: SEED_ID, LEGACY_ID: LEGACY_ID, IRREGULAR_ID: IRREGULAR_ID };
 });

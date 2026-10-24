@@ -115,11 +115,11 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
 <div id="app"></div>
 <div id="toast" class="toast hidden"></div>
 
-<script src="core.js?v=r20"></script>
-<script src="config.js?v=r20"></script>
-<script src="auth.js?v=r20"></script>
-<script src="api.js?v=r20"></script>
-<script>if (/[?&]mock=1/.test(location.search)) document.write('<script src="mock.js?v=r20"><\/script>');</script>
+<script src="core.js?v=r21"></script>
+<script src="config.js?v=r21"></script>
+<script src="auth.js?v=r21"></script>
+<script src="api.js?v=r21"></script>
+<script>if (/[?&]mock=1/.test(location.search)) document.write('<script src="mock.js?v=r21"><\/script>');</script>
 <script>
 (function () {
   var m = /[?&]mock=1/.test(location.search) ? WNMock.create() : null;
@@ -516,7 +516,7 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
         '<div class="rbtns"><button class="btn sm solid" data-act="rotcreate"' + b + '>' + (R.busy ? 'กำลังสร้าง…' : 'สร้าง rotation') + '</button>' +
         '<button class="btn sm" data-act="rotform" data-v=""' + b + '>ยกเลิก</button></div></div>';
     } else if (R.form === 'legacy') {
-      h += '<div class="rform"><div class="sub">สร้างไฟล์ Google Sheet ใหม่ (โครง Main / Staffs / Wards) จากไฟล์เดิมที่มีแท็บ "ค้าง ward" + "consult" <b>ไฟล์เดิมจะถูกอ่านอย่างเดียว ไม่ถูกแก้ไข</b></div>' +
+      h += '<div class="rform"><div class="sub">นำเข้าข้อมูลจากไฟล์เดิมทุกรูปแบบ (โครงเก่า "ค้าง ward" + "consult" หรือตารางที่หัวคอลัมน์ไม่ตรงมาตรฐาน) มาไว้ในไฟล์ใหม่ที่แอปอ่านได้ (Main / Staffs / Wards) ตรวจแท็บและแถวหัวตารางให้เอง คอลัมน์ที่ไม่รู้จักจะถูกเก็บไว้ให้ <b>ไฟล์เดิมจะถูกอ่านอย่างเดียว ไม่ถูกแก้ไข</b></div>' +
         '<label class="f"><span>ลิงก์หรือ ID ของ Sheet เดิม</span><input data-r="urlV" type="text" autocomplete="off" placeholder="https://docs.google.com/spreadsheets/d/…" value="' + esc(R.urlV) + '"></label>' +
         '<label class="f"><span>ชื่อไฟล์ใหม่ (เว้นว่าง = ชื่อเดิม + "(โครงใหม่)")</span><input data-r="nameV" type="text" value="' + esc(R.nameV) + '"></label>' +
         '<div class="rbtns"><button class="btn sm solid" data-act="rotlegacy"' + b + '>' + (R.busy ? 'กำลังย้ายข้อมูล…' : 'ย้ายข้อมูล') + '</button>' +
@@ -530,20 +530,25 @@ h1{margin:0;font-size:24px;line-height:1.2;font-weight:700}
     } else {
       h += '<div class="rbtns"><button class="btn sm solid" data-act="rotform" data-v="new">เริ่ม rotation ใหม่</button>' +
         '<button class="btn sm" data-act="rotform" data-v="add">ผูก sheet ที่มีอยู่</button>' +
-        '<button class="btn sm" data-act="rotform" data-v="legacy">ย้ายจากโครงเดิม</button></div>';
+        '<button class="btn sm" data-act="rotform" data-v="legacy">นำเข้า / ย้ายจากไฟล์เดิม</button></div>';
     }
     if (R.err) h += '<div class="err">' + esc(R.err) + '</div>';
     if (R.result) {
-      var st = R.result.stats, un = st.unlistedWards.map(function (w) { return esc(w.name) + ' (' + w.count + ')'; }).join(', ');
-      h += '<div class="rform"><div class="nm" style="font-size:17px">ย้ายข้อมูลเสร็จแล้ว</div>' +
-        '<div class="sub">ย้ายคนไข้ ' + st.total + ' แถว (ค้าง ward ' + st.wardRows + ' + consult ' + st.consultRows + ') และรายชื่อ staff ' + st.staffs + ' คน · ไฟล์เดิมไม่ถูกแก้ไข</div>' +
-        '<div class="sub">ตรวจสอบสิ่งเหล่านี้ในไฟล์ใหม่:</div><ul style="margin:0;padding-left:20px;font-size:14px;line-height:1.6">' +
-        (st.skipped ? '<li>ข้ามแถวที่มีข้อมูลแต่ไม่มี HN/ชื่อ/Dx/Op/หมายเหตุ/วันที่ ' + st.skipped + ' แถว</li>' : '') +
-        (st.duplicateHn ? '<li>HN ซ้ำกัน ' + st.duplicateHn + ' ราย (เช่น คนที่อยู่ทั้ง consult และ ค้าง ward) คงไว้ทั้งสองแถว ไม่ได้รวมให้</li>' : '') +
-        (st.noStatus ? '<li>ไม่มีสถานะ ' + st.noStatus + ' แถว จะไม่ขึ้นในแท็บ in service จนกว่าจะเติมสถานะ</li>' : '') +
-        (st.badDates ? '<li>วันที่อ่านไม่ได้ ' + st.badDates + ' แถว คงค่าเดิมไว้ ไม่ได้แก้</li>' : '') +
-        (un ? '<li>ward ที่คนไข้ใช้แต่ไม่อยู่ในรายการ Wards: ' + un + ' (เพิ่มได้ในหน้าจัดการ ward)</li>' : '') +
-        '<li>ลำดับแถว: ค้าง ward ก่อน แล้วตามด้วย consult</li></ul>' +
+      var st = R.result.stats, li = [];
+      st.tabs.forEach(function (t) {
+        li.push('<li>แท็บ "' + esc(t.title) + '": ' + t.rows + ' แถว (หัวตารางอยู่แถวที่ ' + t.headerRow + ')' + (t.skipped ? ' · ข้าม ' + t.skipped + ' แถวที่ไม่มีข้อมูลหลัก' : '') + '</li>');
+      });
+      st.skippedTabs.forEach(function (t) { li.push('<li>ข้ามแท็บ "' + esc(t.title) + '" (' + esc(t.reason) + ')</li>'); });
+      if (st.extraColumns.length) li.push('<li>คอลัมน์เสริมที่เก็บไว้ให้ในไฟล์ใหม่ (แอปไม่แสดง แต่ข้อมูลไม่หาย): ' + esc(st.extraColumns.join(', ')) + '</li>');
+      if (st.droppedColumns.length) li.push('<li style="color:var(--danger)">คอลัมน์ที่ไม่ได้ย้าย (เกินจำนวนที่รองรับ): ' + esc(st.droppedColumns.join(', ')) + '</li>');
+      if (st.duplicateHn) li.push('<li>HN ซ้ำกัน ' + st.duplicateHn + ' ราย (เช่น คนที่อยู่ทั้ง consult และ ค้าง ward) คงไว้ทั้งสองแถว ไม่ได้รวมให้</li>');
+      if (st.noStatus) li.push('<li>ไม่มีสถานะ ' + st.noStatus + ' แถว จะไม่ขึ้นในแท็บ in service จนกว่าจะเติมสถานะ</li>');
+      if (st.badDates) li.push('<li>วันที่อ่านไม่ได้ ' + st.badDates + ' แถว คงค่าเดิมไว้ ไม่ได้แก้</li>');
+      if (st.addedWards.length) li.push('<li>เพิ่ม ward ที่คนไข้ใช้แต่ไม่อยู่ในรายการให้แล้ว: ' + esc(st.addedWards.join(', ')) + '</li>');
+      if (st.addedStaffs) li.push('<li>เพิ่มชื่อ staff จากข้อมูลคนไข้เข้ารายการ ' + st.addedStaffs + ' คน</li>');
+      h += '<div class="rform"><div class="nm" style="font-size:17px">นำเข้าข้อมูลเสร็จแล้ว</div>' +
+        '<div class="sub">คนไข้ ' + st.total + ' แถว · ไฟล์เดิมไม่ถูกแก้ไข ตรวจสอบสิ่งเหล่านี้ในไฟล์ใหม่:</div>' +
+        '<ul style="margin:0;padding-left:20px;font-size:14px;line-height:1.6">' + li.join('') + '</ul>' +
         (R.result.url ? '<a class="rlink" target="_blank" rel="noopener" href="' + esc(R.result.url) + '">เปิดไฟล์ใหม่ใน Sheets</a>' : '') + '</div>';
     }
 

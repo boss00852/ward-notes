@@ -210,62 +210,115 @@
     });
   }
 
-  /* ---------- ย้ายจากโครงเดิม (แท็บ "ค้าง ward" + "consult" -> Main) ---------- */
+  /* ---------- นำเข้าจากไฟล์เดิมทุกรูปแบบ -> โครง Main มาตรฐาน ---------- */
   var MAIN_KEYS = ['status', 'note', 'consultDate', 'opDate', 'ward', 'hn', 'name', 'sex', 'age', 'dx', 'op', 'anes', 'staff'];
+  var MAX_EXTRA_COLS = 12; // มาตรฐาน 13 + คอลัมน์เสริมได้ไม่เกิน 12 = 25 (แอปอ่านถึงคอลัมน์ Z)
 
-  // values = ตารางทั้งแท็บ (แถวแรกเป็นหัว) -> { rows: [{key: ค่า}], skipped } ; consult: คอลัมน์ B ที่ไม่มีหัว = หมายเหตุ
-  function legacyRows(values, isConsult) {
+  function cellStr(v) { return String(v == null ? '' : v).trim(); }
+
+  // แถวหัวตาราง: แถวแรกในช่วง 10 แถวบนที่จับคู่ได้ >= 3 ช่อง และมี hn/ชื่อ/dx อย่างน้อยหนึ่งช่อง (ข้ามแถวชื่อเรื่อง/แถวว่างด้านบน)
+  function findHeaderRow(values) {
     values = values || [];
-    var seen = {};
-    var keys = (values[0] || []).map(function (h, i) {
-      var n = normHeader(h), k = headerKey(h);
-      if (!n && isConsult && i === 1) k = 'note';
-      if (!k || seen[k]) return null;
-      seen[k] = true;
-      return k;
+    for (var r = 0; r < Math.min(values.length, 10); r++) {
+      var set = {};
+      columnKeys(values[r] || []).forEach(function (k) { if (k) set[k] = 1; });
+      if (Object.keys(set).length >= 3 && (set.hn || set.name || set.dx)) return r;
+    }
+    return -1;
+  }
+
+  // อ่านแท็บคนไข้หนึ่งแท็บ: ช่องที่รู้จัก -> key; หัวที่ไม่รู้จัก/ซ้ำ -> "คอลัมน์เสริม" (เก็บค่าไว้ ไม่ทิ้ง)
+  // โครงเดิม consult: คอลัมน์ B ที่ไม่มีหัว (และไม่มีคอลัมน์หมายเหตุอื่น) = หมายเหตุ
+  function readImportTab(values, h) {
+    var header = values[h] || [];
+    var hasNote = header.some(function (x) { return headerKey(x) === 'note'; });
+    var seen = {}, keys = [], extras = [];
+    header.forEach(function (x, i) {
+      var n = normHeader(x), k = headerKey(x);
+      if (!n && i === 1 && !hasNote) k = 'note';
+      if (k && !seen[k]) { seen[k] = true; keys[i] = k; }
+      else if (n) extras.push({ header: String(x).replace(/\s+/g, ' ').trim(), col: i });
     });
     var rows = [], skipped = 0;
-    for (var r = 1; r < values.length; r++) {
-      var p = {}, any = false, row = values[r] || [];
+    for (var r = h + 1; r < values.length; r++) {
+      var row = values[r] || [], p = {}, any = false, ex = {};
       keys.forEach(function (k, c) {
         if (!k) return;
-        var v = String(row[c] == null ? '' : row[c]).trim();
+        var v = cellStr(row[c]);
         if (!v) return;
         p[k] = v;
         if (CONTENT_KEYS.indexOf(k) >= 0) any = true;
       });
-      if (any) rows.push(p); else if (row.some(function (x) { return String(x == null ? '' : x).trim(); })) skipped++;
+      extras.forEach(function (e) {
+        var v = cellStr(row[e.col]), key = e.header.toLowerCase();
+        if (v && !(key in ex)) ex[key] = v;
+      });
+      if (any) rows.push({ p: p, ex: ex });
+      else if (row.some(function (x) { return cellStr(x); })) skipped++;
     }
     return { rows: rows, skipped: skipped };
   }
 
-  /* ค้าง ward ก่อน แล้วตามด้วย consult (คงลำดับเดิมในแต่ละแท็บ) ไม่ตัดแถวซ้ำ ไม่แก้ค่า
-   * คืน { rows: [[13 ช่อง]], staffs, stats } stats ใช้รายงานผลให้ผู้ใช้ตรวจ */
-  function migratePlan(wardValues, consultValues, wardsList) {
-    var a = legacyRows(wardValues, false), b = legacyRows(consultValues, true);
-    var all = a.rows.concat(b.rows);
-    var staffSeen = {}, staffs = [], hnCount = {}, wardCount = {};
-    var noStatus = 0, badDates = 0;
-    var listed = {};
-    (wardsList || []).forEach(function (w) { listed[String(w).replace(/\s+/g, ' ').trim().toLowerCase()] = true; });
-    all.forEach(function (p) {
-      if (p.staff) { var sk = p.staff.replace(/\s+/g, ' ').toLowerCase(); if (!staffSeen[sk]) { staffSeen[sk] = true; staffs.push(p.staff.replace(/\s+/g, ' ')); } }
-      if (p.hn) hnCount[p.hn] = (hnCount[p.hn] || 0) + 1;
-      if (p.ward) { var wk = p.ward.replace(/\s+/g, ' ').toLowerCase(); if (!listed[wk]) wardCount[wk] = wardCount[wk] || { name: p.ward, count: 0 }; if (!listed[wk]) wardCount[wk].count++; }
-      if (!p.status) noStatus++;
-      if (['consultDate', 'opDate'].some(function (k) { return p[k] && p[k] !== '-' && !parseDate(p[k]); })) badDates++;
+  /* tabs = [{ title, values }] แท็บที่อาจเป็นตารางคนไข้ (ตามลำดับแท็บ)  wardsList / staffsList = รายชื่อจากแท็บ Wards / Staffs เดิม (ถ้ามี)
+   * คืน { rows: [[13 ช่อง + คอลัมน์เสริม]], extraHeaders, wards, staffs, stats }
+   * ไม่แก้ค่า ไม่ตัดแถวซ้ำ แท็บ consult ไปต่อท้าย (ค้าง ward ก่อน) ward/staff ที่คนไข้ใช้แต่ไม่อยู่ในรายการถูกเพิ่มให้ */
+  function importPlan(tabs, wardsList, staffsList) {
+    var found = [], skippedTabs = [];
+    (tabs || []).forEach(function (t, idx) {
+      var values = t.values || [], h = findHeaderRow(values);
+      if (h < 0) { skippedTabs.push({ title: t.title, reason: values.length ? 'ไม่พบแถวหัวคอลัมน์ที่รู้จัก' : 'แท็บว่าง' }); return; }
+      found.push({ title: t.title, h: h, rt: readImportTab(values, h), idx: idx, late: /consult/i.test(t.title) ? 1 : 0 });
     });
+    found.sort(function (x, y) { return x.late - y.late || x.idx - y.idx; });
+
+    // คอลัมน์เสริม: รวมจากทุกแท็บตามชื่อหัว เก็บเฉพาะที่มีข้อมูลจริง
+    var extraOrder = [], extraSeen = {};
+    found.forEach(function (f) {
+      f.rt.rows.forEach(function (row) {
+        Object.keys(row.ex).forEach(function (key) {
+          if (!extraSeen[key]) { extraSeen[key] = true; extraOrder.push(key); }
+        });
+      });
+    });
+    var headerOf = {};
+    found.forEach(function (f) {
+      var header = (tabs.filter(function (t) { return t.title === f.title; })[0] || {}).values[f.h] || [];
+      header.forEach(function (x) { var k = String(x).replace(/\s+/g, ' ').trim(); if (k && !(k.toLowerCase() in headerOf)) headerOf[k.toLowerCase()] = k; });
+    });
+    var kept = extraOrder.slice(0, MAX_EXTRA_COLS), dropped = extraOrder.slice(MAX_EXTRA_COLS);
+
+    var out = [], hnCount = {}, noStatus = 0, badDates = 0, staffSeen = {}, dataStaffs = [], wardSeen = {}, dataWards = [];
+    var listedWards = {}, listedStaffs = {};
+    (wardsList || []).forEach(function (w) { listedWards[sameKey(w)] = true; });
+    (staffsList || []).forEach(function (s) { listedStaffs[sameKey(s)] = true; });
+    var perTab = found.map(function (f) {
+      f.rt.rows.forEach(function (row) {
+        var p = row.p;
+        out.push(MAIN_KEYS.map(function (k) { return p[k] || ''; }).concat(kept.map(function (key) { return row.ex[key] || ''; })));
+        if (p.hn) hnCount[p.hn] = (hnCount[p.hn] || 0) + 1;
+        if (!p.status) noStatus++;
+        if (['consultDate', 'opDate'].some(function (k) { return p[k] && p[k] !== '-' && !parseDate(p[k]); })) badDates++;
+        if (p.staff) { var sk = sameKey(p.staff); if (!staffSeen[sk]) { staffSeen[sk] = true; dataStaffs.push(p.staff.replace(/\s+/g, ' ')); } }
+        if (p.ward) { var wk = sameKey(p.ward); if (!wardSeen[wk]) { wardSeen[wk] = true; dataWards.push(p.ward.replace(/\s+/g, ' ')); } }
+      });
+      return { title: f.title, headerRow: f.h + 1, rows: f.rt.rows.length, skipped: f.rt.skipped };
+    });
+    var addedWards = dataWards.filter(function (w) { return !listedWards[sameKey(w)]; });
+    var addedStaffs = dataStaffs.filter(function (s) { return !listedStaffs[sameKey(s)]; });
     return {
-      rows: all.map(function (p) { return MAIN_KEYS.map(function (k) { return p[k] || ''; }); }),
-      staffs: staffs,
+      rows: out,
+      extraHeaders: kept.map(function (key) { return headerOf[key] || key; }),
+      wards: normalizeWards((wardsList || []).concat(addedWards)),
+      staffs: normalizeNames((staffsList || []).concat(addedStaffs), ''),
       stats: {
-        wardRows: a.rows.length, consultRows: b.rows.length, total: all.length, skipped: a.skipped + b.skipped,
-        duplicateHn: Object.keys(hnCount).filter(function (h) { return hnCount[h] > 1; }).length,
-        unlistedWards: Object.keys(wardCount).map(function (k) { return wardCount[k]; }),
-        noStatus: noStatus, badDates: badDates, staffs: staffs.length
+        tabs: perTab, skippedTabs: skippedTabs, total: out.length,
+        duplicateHn: Object.keys(hnCount).filter(function (hn) { return hnCount[hn] > 1; }).length,
+        noStatus: noStatus, badDates: badDates, addedWards: addedWards, addedStaffs: addedStaffs.length,
+        extraColumns: kept.map(function (key) { return headerOf[key] || key; }), droppedColumns: dropped.map(function (key) { return headerOf[key] || key; })
       }
     };
   }
+  function sameKey(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim().toLowerCase(); }
 
   /* ---------- A1 ---------- */
   function a1(col, row) { // (28, 5) -> "AB5"
@@ -289,6 +342,6 @@
     normalizeWards: normalizeWards, checkWardName: checkWardName, checkStaffName: checkStaffName, dropStaffHeader: dropStaffHeader,
     wardUsage: wardUsage, matchIndexes: matchIndexes, extractSheetId: extractSheetId,
     setArchived: setArchived, rotationSummary: rotationSummary, a1: a1, colRuns: colRuns,
-    MAIN_KEYS: MAIN_KEYS, legacyRows: legacyRows, migratePlan: migratePlan
+    MAIN_KEYS: MAIN_KEYS, findHeaderRow: findHeaderRow, importPlan: importPlan
   };
 });
